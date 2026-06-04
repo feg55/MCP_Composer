@@ -1,0 +1,2 @@
+"""MCP Composer backend package."""
+
