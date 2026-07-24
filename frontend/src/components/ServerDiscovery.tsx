@@ -23,7 +23,7 @@ interface ServerDiscoveryProps {
 }
 
 const inputClass =
-  "h-10 w-full rounded-md border border-[#343d34] bg-[#111510] px-3 text-[13px] text-[#e7ece7] placeholder:text-[#6f7a70]";
+  "h-10 w-full rounded-md border border-[#343d34] bg-[#111510] px-3 text-[0.8125rem] text-[#e7ece7] placeholder:text-[#6f7a70]";
 
 export function ServerDiscovery({
   catalog,
@@ -79,10 +79,10 @@ export function ServerDiscovery({
 
   return (
     <Panel title="Discover MCP Servers" subtitle="Search MCP aggregators and add runnable upstream configs to the shared pool.">
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_150px_150px]">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_9.375rem_9.375rem]">
         <label className="relative block">
           <span className="sr-only">Search servers</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a70]" size={16} />
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6f7a70]" size="1rem" />
           <input
             className={cn(inputClass, "pl-9")}
             value={query}
@@ -131,7 +131,7 @@ export function ServerDiscovery({
             <span
               key={source.id}
               className={cn(
-                "rounded-full border px-2 py-1 text-[11px]",
+                "rounded-full border px-2 py-1 text-[0.6875rem]",
                 !source.enabled && "border-[#4a4028] bg-[#2b2414] text-[#ffd48a]",
                 source.enabled && source.ok && "border-[#2f6f45] bg-[#18331f] text-[#9ee7b1]",
                 source.enabled && !source.ok && "border-[#7b3030] bg-[#361717] text-[#ffb3b3]"
@@ -143,23 +143,23 @@ export function ServerDiscovery({
             </span>
           ))
         ) : (
-          <span className="rounded-full border border-[#343d34] px-2 py-1 text-[11px] text-[#a9b4aa]">
+          <span className="rounded-full border border-[#343d34] px-2 py-1 text-[0.6875rem] text-[#a9b4aa]">
             aggregator status appears after the first search
           </span>
         )}
       </div>
 
       {error && (
-        <div className="mt-4 flex flex-col gap-3 rounded-md border border-[#7b3030] bg-[#361717] p-4 text-[13px] text-[#ffb3b3] md:flex-row md:items-center md:justify-between">
+        <div className="mt-4 flex flex-col gap-3 rounded-md border border-[#7b3030] bg-[#361717] p-4 text-[0.8125rem] text-[#ffb3b3] md:flex-row md:items-center md:justify-between">
           <span>{error}</span>
-          <Button variant="secondary" onClick={onRetry} leftIcon={<RefreshCw size={15} />}>
+          <Button variant="secondary" onClick={onRetry} leftIcon={<RefreshCw size="0.9375rem" />}>
             Retry
           </Button>
         </div>
       )}
 
       {isLoading ? (
-        <div className="mt-4 rounded-md border border-[#343d34] bg-[#202620] p-5 text-[13px] text-[#a9b4aa]">
+        <div className="mt-4 rounded-md border border-[#343d34] bg-[#202620] p-5 text-[0.8125rem] text-[#a9b4aa]">
           Loading MCP catalog...
         </div>
       ) : (
@@ -171,19 +171,19 @@ export function ServerDiscovery({
             return (
               <article
                 key={server.id}
-                className="rounded-lg border border-[#343d34] bg-[#202620] p-4 transition hover:-translate-y-px hover:bg-[#242a24]"
+                className="min-w-0 rounded-lg border border-[#343d34] bg-[#202620] p-4 transition hover:-translate-y-px hover:bg-[#242a24]"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-[15px] font-semibold text-[#e7ece7]">{server.name}</h3>
+                      <h3 className="break-words text-[0.9375rem] font-semibold text-[#e7ece7]">{server.name}</h3>
                       <Badge>{server.transport}</Badge>
                       <StatusBadge status={server.status} />
                       {server.verified && <Badge tone="read">verified</Badge>}
                     </div>
-                    <p className="mt-2 text-[13px] leading-5 text-[#a9b4aa]">{server.description}</p>
+                    <p className="mt-2 text-[0.8125rem] leading-5 text-[#a9b4aa]">{server.description}</p>
                     {(server.packageId || server.remoteUrl || server.repositoryUrl) && (
-                      <p className="mt-2 truncate font-mono text-[12px] text-[#7edbd0]">
+                      <p className="mt-2 truncate font-mono text-[0.75rem] text-[#7edbd0]">
                         {server.packageId || server.remoteUrl || server.repositoryUrl}
                       </p>
                     )}
@@ -192,7 +192,7 @@ export function ServerDiscovery({
                     variant={isAdded || !canAdd ? "ghost" : "primary"}
                     onClick={() => onAdd(server)}
                     disabled={isAdded || !canAdd}
-                    leftIcon={<Plus size={15} />}
+                    leftIcon={<Plus size="0.9375rem" />}
                   >
                     {isAdded ? "Added" : canAdd ? "Add" : "Metadata"}
                   </Button>
@@ -206,12 +206,12 @@ export function ServerDiscovery({
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {(server.catalogSources ?? []).map((item) => (
-                    <span key={`${server.id}-${item}`} className="rounded-full border border-[#2f6f45] px-2 py-1 text-[11px] text-[#9ee7b1]">
+                    <span key={`${server.id}-${item}`} className="rounded-full border border-[#2f6f45] px-2 py-1 text-[0.6875rem] text-[#9ee7b1]">
                       {item}
                     </span>
                   ))}
                   {server.tags.map((item) => (
-                    <span key={item} className="rounded-full border border-[#343d34] px-2 py-1 text-[11px] text-[#a9b4aa]">
+                    <span key={item} className="rounded-full border border-[#343d34] px-2 py-1 text-[0.6875rem] text-[#a9b4aa]">
                       {item}
                     </span>
                   ))}
@@ -225,11 +225,11 @@ export function ServerDiscovery({
       {!isLoading && filtered.length > 0 && (
         <div ref={sentinelRef} className="mt-4 flex justify-center">
           {hasMore ? (
-            <Button variant="secondary" onClick={onLoadMore} disabled={isLoadingMore} leftIcon={<RefreshCw size={15} />}>
+            <Button variant="secondary" onClick={onLoadMore} disabled={isLoadingMore} leftIcon={<RefreshCw size="0.9375rem" />}>
               {isLoadingMore ? "Loading..." : "Load more servers"}
             </Button>
           ) : (
-            <span className="rounded-md border border-[#343d34] bg-[#111510] px-3 py-2 text-[12px] text-[#a9b4aa]">
+            <span className="rounded-md border border-[#343d34] bg-[#111510] px-3 py-2 text-[0.75rem] text-[#a9b4aa]">
               End of loaded catalog results
             </span>
           )}
@@ -237,9 +237,9 @@ export function ServerDiscovery({
       )}
 
       {!isLoading && !filtered.length && (
-        <div className="mt-4 rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[13px] text-[#a9b4aa]">
+        <div className="mt-4 rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[0.8125rem] text-[#a9b4aa]">
           <div className="mb-2 flex items-center gap-2 text-[#e7ece7]">
-            <Filter size={16} className="text-[#2bb3a3]" />
+            <Filter size="1rem" className="text-[#2bb3a3]" />
             No matching servers
           </div>
           Adjust search, tag, transport, or risk filters to widen the template view.

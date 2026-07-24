@@ -23,48 +23,50 @@ export function GatewaySummary({ taskProfile, servers, selectedTools, warnings, 
 
   return (
     <Panel className="space-y-4" title="Gateway Summary" subtitle="Live composition readiness and risk overview.">
-      <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
-        <p className="text-[12px] font-semibold uppercase text-[#a9b4aa]">Output MCP</p>
-        <h3 className="mt-1 text-[20px] font-semibold text-[#e7ece7]">{taskProfile.name || "Custom MCP Gateway"}</h3>
-        <p className="mt-2 line-clamp-3 text-[13px] leading-5 text-[#a9b4aa]">
-          {taskProfile.description || "No task description yet."}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Metric icon={<Server size={16} />} label="Servers" value={servers.length.toString()} />
-        <Metric icon={<Wrench size={16} />} label="Selected tools" value={selectedTools.length.toString()} />
-      </div>
-
-      <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
-        <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-[#e7ece7]">
-          <Layers3 size={16} className="text-[#2bb3a3]" />
-          Risk breakdown
+      <div className="grid gap-4">
+        <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
+          <p className="text-[0.75rem] font-semibold uppercase text-[#a9b4aa]">Output MCP</p>
+          <h3 className="mt-1 text-[1.25rem] font-semibold text-[#e7ece7]">{taskProfile.name || "Custom MCP Gateway"}</h3>
+          <p className="mt-2 line-clamp-3 text-[0.8125rem] leading-5 text-[#a9b4aa]">
+            {taskProfile.description || "No task description yet."}
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <RiskRow label="read" value={counts.read} />
-          <RiskRow label="write" value={counts.write} />
-          <RiskRow label="external" value={counts.external} />
-          <RiskRow label="destructive" value={counts.destructive} />
-        </div>
-      </div>
 
-      <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
-        <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-[#e7ece7]">
-          <AlertTriangle size={16} className="text-[#ffd48a]" />
-          Warnings
+        <div className="grid grid-cols-2 gap-3">
+          <Metric icon={<Server size="1rem" />} label="Servers" value={servers.length.toString()} />
+          <Metric icon={<Wrench size="1rem" />} label="Selected tools" value={selectedTools.length.toString()} />
         </div>
-        {warnings.length ? (
-          <ul className="space-y-2">
-            {warnings.map((warning) => (
-              <li key={warning} className="rounded-md border border-[#4a4028] bg-[#2b2414] px-3 py-2 text-[12px] leading-5 text-[#ffd48a]">
-                {warning}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[13px] text-[#a9b4aa]">No blocking composition warnings.</p>
-        )}
+
+        <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
+          <div className="mb-3 flex items-center gap-2 text-[0.8125rem] font-semibold text-[#e7ece7]">
+            <Layers3 size="1rem" className="text-[#2bb3a3]" />
+            Risk breakdown
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <RiskRow label="read" value={counts.read} />
+            <RiskRow label="write" value={counts.write} />
+            <RiskRow label="external" value={counts.external} />
+            <RiskRow label="destructive" value={counts.destructive} />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
+          <div className="mb-3 flex items-center gap-2 text-[0.8125rem] font-semibold text-[#e7ece7]">
+            <AlertTriangle size="1rem" className="text-[#ffd48a]" />
+            Warnings
+          </div>
+          {warnings.length ? (
+            <ul className="space-y-2">
+              {warnings.map((warning) => (
+                <li key={warning} className="rounded-md border border-[#4a4028] bg-[#2b2414] px-3 py-2 text-[0.75rem] leading-5 text-[#ffd48a]">
+                  {warning}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[0.8125rem] text-[#a9b4aa]">No blocking composition warnings.</p>
+          )}
+        </div>
       </div>
 
       <Button
@@ -73,7 +75,7 @@ export function GatewaySummary({ taskProfile, servers, selectedTools, warnings, 
         className="h-11"
         onClick={onGenerate}
         disabled={!canGenerate || isGenerating}
-        leftIcon={<Sparkles size={17} />}
+        leftIcon={<Sparkles size="1.0625rem" />}
       >
         {isGenerating ? "Generating..." : "Generate MCP Gateway"}
       </Button>
@@ -85,8 +87,8 @@ function Metric({ icon, label, value }: { icon: ReactNode; label: string; value:
   return (
     <div className="rounded-lg border border-[#343d34] bg-[#202620] p-4">
       <div className="flex items-center gap-2 text-[#2bb3a3]">{icon}</div>
-      <p className="mt-3 text-[12px] font-semibold uppercase text-[#a9b4aa]">{label}</p>
-      <p className="text-[24px] font-semibold text-[#e7ece7]">{value}</p>
+      <p className="mt-3 text-[0.75rem] font-semibold uppercase text-[#a9b4aa]">{label}</p>
+      <p className="text-[1.5rem] font-semibold text-[#e7ece7]">{value}</p>
     </div>
   );
 }
@@ -95,7 +97,7 @@ function RiskRow({ label, value }: { label: "read" | "write" | "external" | "des
   return (
     <div className="flex items-center justify-between rounded-md border border-[#343d34] bg-[#111510] px-2 py-2">
       <Badge tone={label}>{label}</Badge>
-      <span className="text-[13px] font-semibold text-[#e7ece7]">{value}</span>
+      <span className="text-[0.8125rem] font-semibold text-[#e7ece7]">{value}</span>
     </div>
   );
 }

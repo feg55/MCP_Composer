@@ -47,7 +47,7 @@ const defaultTaskProfile: TaskProfile = {
 };
 
 const fieldClass =
-  "w-full rounded-md border border-[#343d34] bg-[#111510] px-3 py-2 text-[13px] text-[#e7ece7] placeholder:text-[#6f7a70]";
+  "w-full rounded-md border border-[#343d34] bg-[#111510] px-3 py-2 text-[0.8125rem] text-[#e7ece7] placeholder:text-[#6f7a70]";
 
 interface ToastState {
   message: string;
@@ -407,7 +407,7 @@ function App() {
     >
       {toast && (
         <div
-          className={`rounded-md border px-4 py-3 text-[13px] ${
+          className={`rounded-md border px-4 py-3 text-[0.8125rem] ${
             toast.severity === "error"
               ? "border-[#7b3030] bg-[#361717] text-[#ffb3b3]"
               : toast.severity === "warning"
@@ -426,7 +426,7 @@ function App() {
         <Panel title="Task Profile" subtitle="Define the custom MCP target and operating notes.">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-[13px] font-semibold text-[#e7ece7]">Custom MCP name</span>
+              <span className="text-[0.8125rem] font-semibold text-[#e7ece7]">Custom MCP name</span>
               <input
                 className={fieldClass}
                 value={taskProfile.name}
@@ -435,7 +435,7 @@ function App() {
               />
             </label>
             <label className="space-y-1">
-              <span className="text-[13px] font-semibold text-[#e7ece7]">Target use case</span>
+              <span className="text-[0.8125rem] font-semibold text-[#e7ece7]">Target use case</span>
               <select
                 className={fieldClass}
                 value={taskProfile.useCase}
@@ -449,18 +449,18 @@ function App() {
               </select>
             </label>
             <label className="space-y-1 md:col-span-2">
-              <span className="text-[13px] font-semibold text-[#e7ece7]">Task description</span>
+              <span className="text-[0.8125rem] font-semibold text-[#e7ece7]">Task description</span>
               <textarea
-                className={`${fieldClass} min-h-[92px] resize-y`}
+                className={`${fieldClass} min-h-[5.75rem] resize-y`}
                 value={taskProfile.description}
                 onChange={(event) => setTaskProfile((current) => ({ ...current, description: event.target.value }))}
                 placeholder="Describe the job this gateway should handle."
               />
             </label>
             <label className="space-y-1 md:col-span-2">
-              <span className="text-[13px] font-semibold text-[#e7ece7]">System instruction / notes</span>
+              <span className="text-[0.8125rem] font-semibold text-[#e7ece7]">System instruction / notes</span>
               <textarea
-                className={`${fieldClass} min-h-[92px] resize-y`}
+                className={`${fieldClass} min-h-[5.75rem] resize-y`}
                 value={taskProfile.systemNotes}
                 onChange={(event) => setTaskProfile((current) => ({ ...current, systemNotes: event.target.value }))}
                 placeholder="Optional routing, approval, or behavior notes."
@@ -517,8 +517,8 @@ function App() {
             />
           </div>
           {aliasConflicts(selectedTools).length > 0 && (
-            <div className="flex items-start gap-3 rounded-md border border-[#7b3030] bg-[#361717] p-4 text-[13px] text-[#ffb3b3]">
-              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 rounded-md border border-[#7b3030] bg-[#361717] p-4 text-[0.8125rem] text-[#ffb3b3]">
+              <AlertCircle size="1rem" className="mt-0.5 shrink-0" />
               Alias conflicts must be resolved before generation: {aliasConflicts(selectedTools).join(", ")}
             </div>
           )}
@@ -540,17 +540,17 @@ function App() {
 
       {activeStep !== "servers" && navigation}
 
-      <footer className="flex flex-col gap-2 border-t border-[#343d34] py-5 text-[12px] text-[#a9b4aa] md:flex-row md:items-center md:justify-between">
+      <footer className="flex flex-col gap-x-6 gap-y-2 border-t border-[#343d34] py-5 text-[0.75rem] text-[#a9b4aa] md:flex-row md:flex-wrap md:items-center md:justify-between">
         <span className="inline-flex items-center gap-2">
-          <CheckCircle2 size={14} className="text-[#2bb3a3]" />
+          <CheckCircle2 size="0.875rem" className="text-[#2bb3a3]" />
           Backend API base: {API_BASE_URL}
         </span>
         <span className="inline-flex items-center gap-2">
-          <ServerCrash size={14} className="text-[#2bb3a3]" />
+          <ServerCrash size="0.875rem" className="text-[#2bb3a3]" />
           Real MCP SDK connector for upstream discovery and calls.
         </span>
         <span className="inline-flex items-center gap-2">
-          <FileText size={14} className="text-[#2bb3a3]" />
+          <FileText size="0.875rem" className="text-[#2bb3a3]" />
           Current output size: {generated ? formatJson(generated.gateway_config_json).length : 0} chars
         </span>
       </footer>
@@ -584,10 +584,10 @@ function StepNavigation({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-[#343d34] bg-[#191d19] p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-[12px] font-semibold uppercase text-[#a9b4aa]">
+        <p className="text-[0.75rem] font-semibold uppercase text-[#a9b4aa]">
           Step {stepNumber} of {totalSteps}
         </p>
-        <p className="mt-1 text-[13px] text-[#a9b4aa]">
+        <p className="mt-1 text-[0.8125rem] text-[#a9b4aa]">
           {activeStep === "servers"
             ? "Catalog and manual additions both update the same server pool."
             : activeStep === "tools"
@@ -597,8 +597,8 @@ function StepNavigation({
                 : "Define the task before choosing upstream capabilities."}
         </p>
       </div>
-      <div className="flex gap-2">
-        <Button variant="secondary" onClick={onBack} disabled={isFirst} leftIcon={<ArrowLeft size={15} />}>
+      <div className="flex flex-wrap gap-2 sm:justify-end">
+        <Button variant="secondary" onClick={onBack} disabled={isFirst} leftIcon={<ArrowLeft size="0.9375rem" />}>
           Back
         </Button>
         {!isLast && (
@@ -606,7 +606,7 @@ function StepNavigation({
             variant="primary"
             onClick={onNext}
             disabled={nextDisabled}
-            leftIcon={activeStep === "tools" ? <Sparkles size={15} /> : <ArrowRight size={15} />}
+            leftIcon={activeStep === "tools" ? <Sparkles size="0.9375rem" /> : <ArrowRight size="0.9375rem" />}
           >
             {nextLabel}
           </Button>

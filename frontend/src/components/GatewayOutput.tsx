@@ -16,7 +16,7 @@ export function GatewayOutput({ generated, onCopy, onDownload, onReset }: Gatewa
   if (!generated) {
     return (
       <Panel title="Gateway Output" subtitle="Generated gateway artifacts will appear here.">
-        <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[13px] leading-5 text-[#a9b4aa]">
+        <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[0.8125rem] leading-5 text-[#a9b4aa]">
           Select tools and generate the gateway to view composition JSON, runtime config, client snippet, README, and exposed tools.
         </div>
       </Panel>
@@ -33,33 +33,33 @@ export function GatewayOutput({ generated, onCopy, onDownload, onReset }: Gatewa
       title="Gateway Output"
       subtitle="Exportable artifacts for the local MCP SDK gateway."
       actions={
-        <Button variant="ghost" onClick={onReset} leftIcon={<RotateCcw size={15} />}>
+        <Button variant="ghost" onClick={onReset} leftIcon={<RotateCcw size="0.9375rem" />}>
           Reset
         </Button>
       }
     >
       <div className="mb-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-        <Button variant="secondary" onClick={() => onCopy("composition JSON", compositionJson)} leftIcon={<Clipboard size={15} />}>
+        <Button variant="secondary" onClick={() => onCopy("composition JSON", compositionJson)} leftIcon={<Clipboard size="0.9375rem" />}>
           Copy JSON
         </Button>
         <Button
           variant="secondary"
           onClick={() => onDownload("mcp-composition.json", compositionJson)}
-          leftIcon={<Download size={15} />}
+          leftIcon={<Download size="0.9375rem" />}
         >
           Composition
         </Button>
         <Button
           variant="secondary"
           onClick={() => onDownload("gateway.config.json", gatewayJson)}
-          leftIcon={<Download size={15} />}
+          leftIcon={<Download size="0.9375rem" />}
         >
           Gateway config
         </Button>
         <Button
           variant="secondary"
           onClick={() => onDownload("README.md", generated.readme_text, "text/markdown")}
-          leftIcon={<Download size={15} />}
+          leftIcon={<Download size="0.9375rem" />}
         >
           README
         </Button>
@@ -84,15 +84,15 @@ function OutputBlock({ title, value, onCopy }: { title: string; value: string; o
   return (
     <section className="min-w-0 rounded-lg border border-[#343d34] bg-[#202620]">
       <div className="flex items-center justify-between gap-3 border-b border-[#343d34] px-4 py-3">
-        <div className="flex items-center gap-2 text-[13px] font-semibold text-[#e7ece7]">
-          <FileJson size={15} className="text-[#2bb3a3]" />
+        <div className="flex items-center gap-2 text-[0.8125rem] font-semibold text-[#e7ece7]">
+          <FileJson size="0.9375rem" className="text-[#2bb3a3]" />
           {title}
         </div>
-        <Button variant="ghost" onClick={onCopy} leftIcon={<Clipboard size={14} />}>
+        <Button variant="ghost" onClick={onCopy} leftIcon={<Clipboard size="0.875rem" />}>
           Copy
         </Button>
       </div>
-      <pre className="scrollbar-thin max-h-[320px] min-w-0 overflow-auto p-4 text-[12px] leading-5 text-[#cdd6cd]">{value}</pre>
+      <pre className="scrollbar-thin max-h-[20rem] min-w-0 overflow-auto p-4 text-[0.75rem] leading-5 text-[#cdd6cd]">{value}</pre>
     </section>
   );
 }

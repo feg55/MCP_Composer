@@ -38,12 +38,12 @@ export function ToolPicker({ servers, focusServerId, onToggleTool, onAliasChange
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h3 className="text-[15px] font-semibold text-[#e7ece7]">{server.name}</h3>
-                  <p className="text-[12px] text-[#a9b4aa]">
+                  <h3 className="text-[0.9375rem] font-semibold text-[#e7ece7]">{server.name}</h3>
+                  <p className="text-[0.75rem] text-[#a9b4aa]">
                     {server.tools.filter((tool) => tool.enabled).length}/{server.tools.length} selected
                   </p>
                 </div>
-                <span className="rounded-md border border-[#343d34] bg-[#202620] px-2 py-1 text-[12px] text-[#a9b4aa]">
+                <span className="rounded-md border border-[#343d34] bg-[#202620] px-2 py-1 text-[0.75rem] text-[#a9b4aa]">
                   {server.transport}
                 </span>
               </div>
@@ -61,7 +61,7 @@ export function ToolPicker({ servers, focusServerId, onToggleTool, onAliasChange
                     />
                   ))
                 ) : (
-                  <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-4 text-[13px] text-[#a9b4aa]">
+                  <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-4 text-[0.8125rem] text-[#a9b4aa]">
                     Discover tools for this server from Server Pool before selecting capabilities.
                   </div>
                 )}
@@ -70,9 +70,9 @@ export function ToolPicker({ servers, focusServerId, onToggleTool, onAliasChange
           ))}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[13px] leading-5 text-[#a9b4aa]">
+        <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[0.8125rem] leading-5 text-[#a9b4aa]">
           <div className="mb-2 flex items-center gap-2 text-[#e7ece7]">
-            <Wrench size={16} className="text-[#2bb3a3]" />
+            <Wrench size="1rem" className="text-[#2bb3a3]" />
             No tools available
           </div>
           {servers.length

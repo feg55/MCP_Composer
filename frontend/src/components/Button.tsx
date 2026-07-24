@@ -21,7 +21,7 @@ export function Button({ children, className, variant = "secondary", fullWidth, 
   return (
     <button
       className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex h-10 items-center justify-center gap-2 rounded-md border px-3 text-[0.8125rem] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
         fullWidth && "w-full",
         variants[variant],
         className

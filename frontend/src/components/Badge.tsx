@@ -26,7 +26,7 @@ export function Badge({ children, tone = "neutral", className }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-semibold uppercase tracking-[0.02em]",
+        "inline-flex h-6 items-center rounded-full border px-2 text-[0.6875rem] font-semibold uppercase tracking-[0.02em]",
         tones[tone],
         className
       )}

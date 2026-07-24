@@ -15,7 +15,7 @@ interface ToolCardProps {
 }
 
 const inputClass =
-  "h-9 w-full rounded-md border border-[#343d34] bg-[#111510] px-2.5 text-[13px] text-[#e7ece7] placeholder:text-[#6f7a70]";
+  "h-9 w-full rounded-md border border-[#343d34] bg-[#111510] px-2.5 text-[0.8125rem] text-[#e7ece7] placeholder:text-[#6f7a70]";
 
 export function ToolCard({ tool, namespacePreview, aliasConflict, onToggle, onAliasChange, onPermissionChange }: ToolCardProps) {
   const [schemaOpen, setSchemaOpen] = useState(false);
@@ -47,26 +47,26 @@ export function ToolCard({ tool, namespacePreview, aliasConflict, onToggle, onAl
           </label>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="font-mono text-[14px] font-semibold text-[#e7ece7]">{tool.originalName}</h4>
+              <h4 className="break-words font-mono text-[0.875rem] font-semibold text-[#e7ece7]">{tool.originalName}</h4>
               <RiskBadge risk={tool.riskLevel} />
             </div>
-            <p className="mt-2 text-[13px] leading-5 text-[#a9b4aa]">{tool.description}</p>
-            <p className="mt-2 font-mono text-[12px] text-[#7edbd0]">{namespacePreview}</p>
+            <p className="mt-2 text-[0.8125rem] leading-5 text-[#a9b4aa]">{tool.description}</p>
+            <p className="mt-2 break-all font-mono text-[0.75rem] text-[#7edbd0]">{namespacePreview}</p>
           </div>
         </div>
-        <div className="grid gap-3 md:w-[360px]">
+        <div className="grid gap-3 md:w-[22.5rem]">
           <label className="space-y-1">
-            <span className="text-[12px] font-semibold text-[#a9b4aa]">Exposed alias</span>
+            <span className="text-[0.75rem] font-semibold text-[#a9b4aa]">Exposed alias</span>
             <input
               className={cn(inputClass, aliasConflict && "border-[#ff7777]")}
               value={tool.exposedName}
               onChange={(event) => onAliasChange(tool.id, event.target.value)}
               aria-invalid={aliasConflict}
             />
-            {aliasConflict && <span className="block text-[12px] text-[#ff9c9c]">Alias must be unique.</span>}
+            {aliasConflict && <span className="block text-[0.75rem] text-[#ff9c9c]">Alias must be unique.</span>}
           </label>
           <label className="space-y-1">
-            <span className="text-[12px] font-semibold text-[#a9b4aa]">Permission mode</span>
+            <span className="text-[0.75rem] font-semibold text-[#a9b4aa]">Permission mode</span>
             <select
               className={inputClass}
               value={tool.permission}
@@ -82,16 +82,16 @@ export function ToolCard({ tool, namespacePreview, aliasConflict, onToggle, onAl
 
       <button
         type="button"
-        className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-[#a9b4aa] hover:text-[#e7ece7]"
+        className="mt-3 inline-flex items-center gap-1 text-[0.75rem] font-semibold text-[#a9b4aa] hover:text-[#e7ece7]"
         onClick={() => setSchemaOpen((current) => !current)}
       >
-        {schemaOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {schemaOpen ? <ChevronDown size="0.875rem" /> : <ChevronRight size="0.875rem" />}
         Input schema preview
       </button>
       {schemaOpen && (
         <pre
           data-no-card-toggle
-          className="scrollbar-thin mt-3 max-h-56 min-w-0 cursor-text overflow-auto rounded-md border border-[#343d34] bg-[#111510] p-3 text-[12px] leading-5 text-[#cdd6cd]"
+          className="scrollbar-thin mt-3 max-h-56 min-w-0 cursor-text overflow-auto rounded-md border border-[#343d34] bg-[#111510] p-3 text-[0.75rem] leading-5 text-[#cdd6cd]"
         >
           {formatJson(tool.inputSchema)}
         </pre>

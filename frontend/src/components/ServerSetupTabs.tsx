@@ -47,10 +47,10 @@ export function ServerSetupTabs({ activeTab, onTabChange, catalog, manual }: Ser
                   active ? "border-[#2bb3a3] bg-[#202620]" : "border-[#343d34] bg-[#111510] hover:bg-[#242a24]"
                 )}
               >
-                <Icon size={17} className={active ? "text-[#2bb3a3]" : "text-[#a9b4aa]"} />
+                <Icon size="1.0625rem" className={active ? "text-[#2bb3a3]" : "text-[#a9b4aa]"} />
                 <span>
-                  <span className="block text-[13px] font-semibold text-[#e7ece7]">{tab.label}</span>
-                  <span className="block text-[12px] text-[#a9b4aa]">{tab.detail}</span>
+                  <span className="block text-[0.8125rem] font-semibold text-[#e7ece7]">{tab.label}</span>
+                  <span className="block text-[0.75rem] text-[#a9b4aa]">{tab.detail}</span>
                 </span>
               </button>
             );

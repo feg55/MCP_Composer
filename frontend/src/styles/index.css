@@ -12,6 +12,8 @@
 }
 
 html {
+  /* Preserve the 1440px design proportions while scaling wide desktop viewports. */
+  font-size: clamp(1rem, calc(0.035714rem + 1.071429vw), 2.625rem);
   scroll-behavior: smooth;
 }
 
