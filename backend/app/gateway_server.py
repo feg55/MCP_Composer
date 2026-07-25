@@ -12,6 +12,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
 from app.core.connectors.mcp_connector import McpSdkConnector
+from app.core.settings import get_settings
 from app.core.types import McpServerDefinition, McpToolDefinition
 
 
@@ -63,15 +64,19 @@ def _gateway_name(config: dict[str, Any]) -> str:
 
 def build_gateway_app(config: dict[str, Any]) -> Server:
     app = Server(_gateway_name(config))
-    connector = McpSdkConnector()
+    runtime = config.get("runtime") if isinstance(config.get("runtime"), dict) else {}
+    required_mode = runtime.get("requiredAppMode") or runtime.get("mode")
+    settings = get_settings()
+    if required_mode in {"local", "hosted"} and settings.app_mode != required_mode:
+        raise RuntimeError(
+            f"Generated gateway requires APP_MODE={required_mode}, "
+            f"but APP_MODE={settings.app_mode} is active."
+        )
+    connector = McpSdkConnector(settings=settings)
     servers = {
-        server["id"]: _server_from_config(server)
-        for server in config.get("upstreamServers", [])
+        server["id"]: _server_from_config(server) for server in config.get("upstreamServers", [])
     }
-    tools = {
-        route["name"]: _tool_from_route(route)
-        for route in config.get("toolRoutes", [])
-    }
+    tools = {route["name"]: _tool_from_route(route) for route in config.get("toolRoutes", [])}
 
     @app.list_tools()
     async def list_tools() -> list[types.Tool]:
@@ -92,6 +97,10 @@ def build_gateway_app(config: dict[str, Any]) -> Server:
             raise ValueError(f"Tool {name!r} is not exposed by this gateway.")
         if tool.permission == "disabled":
             raise PermissionError(f"Tool {name!r} is disabled by policy.")
+        if tool.permission == "require_approval":
+            raise PermissionError(
+                f"Tool {name!r} requires approval, but no approval flow is configured."
+            )
         server = servers.get(tool.serverId)
         if not server:
             raise ValueError(f"Upstream server {tool.serverId!r} was not found.")

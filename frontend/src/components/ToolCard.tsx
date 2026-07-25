@@ -1,77 +1,100 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { type MouseEvent, useState } from "react";
+import { memo, type ChangeEvent, type MouseEvent, useCallback, useState } from "react";
 
 import { RiskBadge } from "./Badge";
+import { reportRender } from "../lib/renderAudit";
 import type { McpToolDefinition, PermissionMode } from "../lib/types";
 import { cn, formatJson } from "../lib/utils";
+import styles from "./ToolCard.module.scss";
 
 interface ToolCardProps {
+  serverId: string;
   tool: McpToolDefinition;
   namespacePreview: string;
   aliasConflict: boolean;
-  onToggle: (toolId: string, enabled: boolean) => void;
-  onAliasChange: (toolId: string, alias: string) => void;
-  onPermissionChange: (toolId: string, permission: PermissionMode) => void;
+  onToggle: (serverId: string, toolId: string, enabled: boolean, toolName: string) => void;
+  onAliasChange: (serverId: string, toolId: string, alias: string) => void;
+  onPermissionChange: (serverId: string, toolId: string, permission: PermissionMode, toolName: string) => void;
 }
 
-const inputClass =
-  "h-9 w-full rounded-md border border-[#343d34] bg-[#111510] px-2.5 text-[0.8125rem] text-[#e7ece7] placeholder:text-[#6f7a70]";
+export const ToolCard = memo(function ToolCard({
+  serverId,
+  tool,
+  namespacePreview,
+  aliasConflict,
+  onToggle,
+  onAliasChange,
+  onPermissionChange
+}: ToolCardProps) {
+  if (import.meta.env.DEV) reportRender(`ToolCard:${tool.id}`);
 
-export function ToolCard({ tool, namespacePreview, aliasConflict, onToggle, onAliasChange, onPermissionChange }: ToolCardProps) {
   const [schemaOpen, setSchemaOpen] = useState(false);
 
-  function handleCardClick(event: MouseEvent<HTMLElement>) {
-    const target = event.target as HTMLElement;
-    if (target.closest("button,input,select,textarea,label,a,[data-no-card-toggle]")) return;
-    onToggle(tool.id, !tool.enabled);
-  }
+  const handleCardClick = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("button,input,select,textarea,label,a,[data-no-card-toggle]")) return;
+      onToggle(serverId, tool.id, !tool.enabled, tool.exposedName);
+    },
+    [onToggle, serverId, tool.enabled, tool.exposedName, tool.id]
+  );
+
+  const handleToggle = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      onToggle(serverId, tool.id, event.target.checked, tool.exposedName);
+    },
+    [onToggle, serverId, tool.exposedName, tool.id]
+  );
+
+  const handleAliasChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      onAliasChange(serverId, tool.id, event.target.value);
+    },
+    [onAliasChange, serverId, tool.id]
+  );
+
+  const handlePermissionChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      onPermissionChange(serverId, tool.id, event.target.value as PermissionMode, tool.exposedName);
+    },
+    [onPermissionChange, serverId, tool.exposedName, tool.id]
+  );
+
+  const handleSchemaToggle = useCallback(() => {
+    setSchemaOpen((current) => !current);
+  }, []);
 
   return (
-    <article
-      onClick={handleCardClick}
-      className={cn(
-        "cursor-pointer rounded-lg border bg-[#202620] p-4 transition hover:-translate-y-px hover:bg-[#242a24]",
-        tool.enabled ? "border-[#2bb3a3]" : "border-[#343d34]"
-      )}
-    >
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div className="flex min-w-0 gap-3">
-          <label className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center">
-            <span className="sr-only">Enable {tool.originalName}</span>
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-[#343d34] accent-[#2bb3a3]"
-              checked={tool.enabled}
-              onChange={(event) => onToggle(tool.id, event.target.checked)}
-            />
+    <article onClick={handleCardClick} className={cn(styles.card, tool.enabled && styles.enabled)}>
+      <div className={styles.layout}>
+        <div className={styles.summary}>
+          <label className={styles.checkboxLabel}>
+            <span className={styles.visuallyHidden}>Enable {tool.originalName}</span>
+            <input type="checkbox" className={styles.checkbox} checked={tool.enabled} onChange={handleToggle} />
           </label>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h4 className="break-words font-mono text-[0.875rem] font-semibold text-[#e7ece7]">{tool.originalName}</h4>
+          <div className={styles.summaryBody}>
+            <div className={styles.titleRow}>
+              <h4 className={styles.title}>{tool.originalName}</h4>
               <RiskBadge risk={tool.riskLevel} />
             </div>
-            <p className="mt-2 text-[0.8125rem] leading-5 text-[#a9b4aa]">{tool.description}</p>
-            <p className="mt-2 break-all font-mono text-[0.75rem] text-[#7edbd0]">{namespacePreview}</p>
+            <p className={styles.description}>{tool.description}</p>
+            <p className={styles.namespace}>{namespacePreview}</p>
           </div>
         </div>
-        <div className="grid gap-3 md:w-[22.5rem]">
-          <label className="space-y-1">
-            <span className="text-[0.75rem] font-semibold text-[#a9b4aa]">Exposed alias</span>
+        <div className={styles.controls}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Exposed alias</span>
             <input
-              className={cn(inputClass, aliasConflict && "border-[#ff7777]")}
+              className={cn(styles.input, aliasConflict && styles.inputError)}
               value={tool.exposedName}
-              onChange={(event) => onAliasChange(tool.id, event.target.value)}
+              onChange={handleAliasChange}
               aria-invalid={aliasConflict}
             />
-            {aliasConflict && <span className="block text-[0.75rem] text-[#ff9c9c]">Alias must be unique.</span>}
+            {aliasConflict && <span className={styles.error}>Alias must be unique.</span>}
           </label>
-          <label className="space-y-1">
-            <span className="text-[0.75rem] font-semibold text-[#a9b4aa]">Permission mode</span>
-            <select
-              className={inputClass}
-              value={tool.permission}
-              onChange={(event) => onPermissionChange(tool.id, event.target.value as PermissionMode)}
-            >
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Permission mode</span>
+            <select className={styles.input} value={tool.permission} onChange={handlePermissionChange}>
               <option value="auto">auto</option>
               <option value="require_approval">require approval</option>
               <option value="disabled">disabled</option>
@@ -80,22 +103,15 @@ export function ToolCard({ tool, namespacePreview, aliasConflict, onToggle, onAl
         </div>
       </div>
 
-      <button
-        type="button"
-        className="mt-3 inline-flex items-center gap-1 text-[0.75rem] font-semibold text-[#a9b4aa] hover:text-[#e7ece7]"
-        onClick={() => setSchemaOpen((current) => !current)}
-      >
+      <button type="button" className={styles.schemaToggle} onClick={handleSchemaToggle}>
         {schemaOpen ? <ChevronDown size="0.875rem" /> : <ChevronRight size="0.875rem" />}
         Input schema preview
       </button>
       {schemaOpen && (
-        <pre
-          data-no-card-toggle
-          className="scrollbar-thin mt-3 max-h-56 min-w-0 cursor-text overflow-auto rounded-md border border-[#343d34] bg-[#111510] p-3 text-[0.75rem] leading-5 text-[#cdd6cd]"
-        >
+        <pre data-no-card-toggle className={styles.schema}>
           {formatJson(tool.inputSchema)}
         </pre>
       )}
     </article>
   );
-}
+});

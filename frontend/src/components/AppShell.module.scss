@@ -1,0 +1,166 @@
+@use "../styles/tokens" as *;
+@use "../styles/mixins" as *;
+
+.shell {
+  min-height: 100vh;
+  padding: 1rem;
+  background: $color-page;
+  color: $color-text;
+}
+
+.wrapper {
+  width: 100%;
+  max-width: 120rem;
+  margin-inline: auto;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 0.0625rem solid $color-border;
+}
+
+.brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  color: $color-accent;
+}
+
+.brandCopy {
+  min-width: 0;
+}
+
+.title {
+  color: $color-text;
+  font-size: clamp(1.75rem, 8vw, 2.125rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: normal;
+}
+
+.tagline {
+  margin-top: 0.25rem;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+}
+
+.connector {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+}
+
+.connectorIcon {
+  color: $color-accent;
+}
+
+.layout {
+  display: grid;
+  min-width: 0;
+  gap: 1.5rem;
+}
+
+.content,
+.sidebar {
+  min-width: 0;
+}
+
+.content > * + * {
+  margin-top: 1.5rem;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem 1.5rem;
+  border-top: 0.0625rem solid $color-border;
+  padding-block: 1.25rem;
+  color: $color-text-muted;
+  font-size: 0.75rem;
+}
+
+.footerItem {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.footerIcon {
+  flex: 0 0 auto;
+  color: $color-accent;
+}
+
+@media (min-width: $breakpoint-sm) {
+  .shell {
+    padding: 1.5rem;
+  }
+
+  .brand {
+    gap: 1rem;
+  }
+
+  .logo {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .title {
+    line-height: 2.5rem;
+  }
+
+  .connector {
+    width: fit-content;
+  }
+}
+
+@media (min-width: $breakpoint-md) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer {
+    flex-flow: row wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: $breakpoint-xl) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) clamp(21.25rem, 29vw, 26.25rem);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+  }
+}

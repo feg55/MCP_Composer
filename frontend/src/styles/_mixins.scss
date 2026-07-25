@@ -1,0 +1,69 @@
+@use "tokens" as *;
+
+@mixin panel {
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface;
+}
+
+@mixin inset-surface {
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-strong;
+}
+
+@mixin field {
+  width: 100%;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-muted;
+  color: $color-text;
+  transition:
+    border-color $transition-fast,
+    box-shadow $transition-fast;
+
+  &::placeholder {
+    color: $color-text-subtle;
+  }
+
+  &:hover {
+    border-color: #3a473a;
+  }
+
+  &:focus {
+    border-color: $color-accent;
+    box-shadow: 0 0 0 0.125rem rgb(43 179 163 / 14%);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+@mixin interactive {
+  transition:
+    color $transition-fast,
+    background-color $transition-fast,
+    border-color $transition-fast,
+    opacity $transition-fast,
+    transform $transition-fast;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 0.0625rem;
+  height: 0.0625rem;
+  padding: 0;
+  margin: -0.0625rem;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

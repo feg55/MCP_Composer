@@ -8,20 +8,44 @@ import type {
   ValidationResult
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+
+async function errorMessage(response: Response): Promise<string> {
+  const fallback = `Request failed with ${response.status}.`;
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("application/json")) {
+    const text = (await response.text()).trim();
+    return text.slice(0, 500) || fallback;
+  }
+
+  try {
+    const body = (await response.json()) as { detail?: unknown; message?: unknown };
+    const detail = body.detail ?? body.message;
+    if (typeof detail === "string") return detail.slice(0, 500);
+    if (detail) return JSON.stringify(detail).slice(0, 500);
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+  if (options.body !== undefined && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers ?? {})
-    }
+    credentials: "same-origin",
+    headers
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Request failed with ${response.status}`);
+    throw new Error(await errorMessage(response));
   }
 
   return response.json() as Promise<T>;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 from functools import lru_cache
@@ -9,15 +10,23 @@ from typing import Any
 
 import httpx
 
-from app.core.types import CatalogSearchResponse, CatalogServerDefinition, CatalogSourceStatus, McpServerDefinition
-
+from app.core.types import (
+    CatalogSearchResponse,
+    CatalogServerDefinition,
+    CatalogSourceStatus,
+    McpServerDefinition,
+)
 
 CATALOG_PATH = Path(__file__).resolve().parents[1] / "data" / "server_templates.json"
-OFFICIAL_REGISTRY_URL = os.getenv("MCP_OFFICIAL_REGISTRY_URL", "https://registry.modelcontextprotocol.io/v0.1/servers")
+OFFICIAL_REGISTRY_URL = os.getenv(
+    "MCP_OFFICIAL_REGISTRY_URL", "https://registry.modelcontextprotocol.io/v0.1/servers"
+)
 PULSEMCP_REGISTRY_URL = os.getenv("PULSEMCP_REGISTRY_URL", "https://api.pulsemcp.com/v0.1/servers")
 SMITHERY_REGISTRY_URL = os.getenv("SMITHERY_REGISTRY_URL", "https://api.smithery.ai/servers")
 GLAMA_REGISTRY_URL = os.getenv("GLAMA_REGISTRY_URL", "https://glama.ai/api/mcp/v1/servers")
 HTTP_TIMEOUT_SECONDS = 5.0
+MAX_PROVIDER_CURSOR_LENGTH = 2_048
+MAX_SEEN_CURSOR_KEYS = 256
 
 
 class CatalogProviderResult:
@@ -81,30 +90,57 @@ def _first_dict(values: Any) -> dict[str, Any] | None:
 
 def _decode_cursor(cursor: str | None) -> dict[str, Any]:
     if not cursor:
-        return {"sourceCursors": {}, "buffer": [], "seen": []}
+        return {"sourceCursors": {}, "sourceDone": [], "seen": []}
     try:
-        raw = base64.urlsafe_b64decode(cursor.encode("utf-8")).decode("utf-8")
+        raw = base64.b64decode(
+            cursor.encode("ascii"),
+            altchars=b"-_",
+            validate=True,
+        ).decode("utf-8")
         payload = json.loads(raw)
-    except Exception:
-        return {"sourceCursors": {}, "buffer": [], "seen": []}
+    except (UnicodeError, ValueError, json.JSONDecodeError):
+        return {"sourceCursors": {}, "sourceDone": [], "seen": []}
     if not isinstance(payload, dict):
-        return {"sourceCursors": {}, "buffer": [], "seen": []}
-    payload.setdefault("sourceCursors", {})
-    payload.setdefault("buffer", [])
-    payload.setdefault("seen", [])
-    return payload
+        return {"sourceCursors": {}, "sourceDone": [], "seen": []}
+
+    raw_cursors = payload.get("sourceCursors")
+    source_cursors = {
+        key: value
+        for key, value in (raw_cursors.items() if isinstance(raw_cursors, dict) else [])
+        if isinstance(key, str)
+        and len(key) <= 100
+        and isinstance(value, str)
+        and len(value) <= MAX_PROVIDER_CURSOR_LENGTH
+    }
+    raw_done = payload.get("sourceDone")
+    source_done = [
+        value
+        for value in (raw_done if isinstance(raw_done, list) else [])
+        if isinstance(value, str) and len(value) <= 100
+    ][:20]
+    raw_seen = payload.get("seen")
+    seen = [
+        value
+        for value in (raw_seen if isinstance(raw_seen, list) else [])
+        if isinstance(value, str) and len(value) == 16
+    ][-MAX_SEEN_CURSOR_KEYS:]
+    return {"sourceCursors": source_cursors, "sourceDone": source_done, "seen": seen}
 
 
-def _encode_cursor(payload: dict[str, Any]) -> str | None:
-    source_cursors = {key: value for key, value in payload.get("sourceCursors", {}).items() if value}
-    buffer = payload.get("buffer", [])
-    if not source_cursors and not buffer:
+def _encode_cursor(payload: dict[str, Any], *, has_more: bool) -> str | None:
+    if not has_more:
         return None
+    source_cursors = {
+        key: value
+        for key, value in payload.get("sourceCursors", {}).items()
+        if value and len(value) <= MAX_PROVIDER_CURSOR_LENGTH
+    }
     encoded = json.dumps(
         {
+            "v": 1,
             "sourceCursors": source_cursors,
-            "buffer": buffer,
-            "seen": payload.get("seen", [])[-500:],
+            "sourceDone": sorted(payload.get("sourceDone", []))[:20],
+            "seen": payload.get("seen", [])[-MAX_SEEN_CURSOR_KEYS:],
         },
         separators=(",", ":"),
     )
@@ -112,10 +148,17 @@ def _encode_cursor(payload: dict[str, Any]) -> str | None:
 
 
 def _dedupe_key(server: CatalogServerDefinition) -> str:
-    for value in (server.repositoryUrl, server.packageId, server.remoteUrl, server.externalUrl, server.id):
+    for value in (
+        server.repositoryUrl,
+        server.packageId,
+        server.remoteUrl,
+        server.externalUrl,
+        server.id,
+    ):
         if value:
-            return value.lower().rstrip("/")
-    return server.name.lower()
+            normalized = value.lower().rstrip("/")
+            return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(server.name.lower().encode("utf-8")).hexdigest()[:16]
 
 
 def _catalog_server_from_template(server: McpServerDefinition) -> CatalogServerDefinition:
@@ -154,14 +197,18 @@ def _server_status(env: dict[str, str], command: str | None, url: str | None) ->
     return "ready"
 
 
-def _runtime_from_server_json(server: dict[str, Any]) -> tuple[str, str | None, list[str], str | None, dict[str, str], str | None, str | None]:
+def _runtime_from_server_json(
+    server: dict[str, Any],
+) -> tuple[str, str | None, list[str], str | None, dict[str, str], str | None, str | None]:
     packages = server.get("packages") if isinstance(server.get("packages"), list) else []
     package = _first_dict(packages)
     if package:
         identifier = _text(package.get("identifier"))
         registry_type = _text(package.get("registryType") or package.get("registry_type")).lower()
         env: dict[str, str] = {}
-        for item in package.get("environmentVariables") or package.get("environment_variables") or []:
+        for item in (
+            package.get("environmentVariables") or package.get("environment_variables") or []
+        ):
             if isinstance(item, dict):
                 name = _text(item.get("name"))
                 if name:
@@ -180,17 +227,25 @@ def _runtime_from_server_json(server: dict[str, Any]) -> tuple[str, str | None, 
     return "stdio", None, [], None, {}, None, None
 
 
-def _catalog_server_from_registry_entry(source: str, entry: dict[str, Any]) -> CatalogServerDefinition | None:
+def _catalog_server_from_registry_entry(
+    source: str, entry: dict[str, Any]
+) -> CatalogServerDefinition | None:
     server = entry.get("server") if isinstance(entry.get("server"), dict) else entry
     if not isinstance(server, dict):
         return None
 
-    title = _text(server.get("title") or server.get("displayName") or server.get("name"), "MCP Server")
+    title = _text(
+        server.get("title") or server.get("displayName") or server.get("name"), "MCP Server"
+    )
     raw_name = _text(server.get("name") or title)
-    description = _text(server.get("description"), "MCP server discovered from an external registry.")
+    description = _text(
+        server.get("description"), "MCP server discovered from an external registry."
+    )
     repository = server.get("repository") if isinstance(server.get("repository"), dict) else {}
     repository_url = _text(repository.get("url")) if repository else ""
-    homepage_url = _text(server.get("websiteUrl") or server.get("homepage") or server.get("homepageUrl"))
+    homepage_url = _text(
+        server.get("websiteUrl") or server.get("homepage") or server.get("homepageUrl")
+    )
     transport, command, args, url, env, package_id, install_hint = _runtime_from_server_json(server)
     source_label = "official" if source == "official" else source
     tags = [source_label]
@@ -202,8 +257,12 @@ def _catalog_server_from_registry_entry(source: str, entry: dict[str, Any]) -> C
         tags.append("github" if "github.com" in repository_url else "repository")
 
     meta = entry.get("_meta") if isinstance(entry.get("_meta"), dict) else {}
-    pulse_meta = meta.get("com.pulsemcp/server") if isinstance(meta.get("com.pulsemcp/server"), dict) else {}
-    popularity = pulse_meta.get("visitorsEstimateLastFourWeeks") or pulse_meta.get("visitorsEstimateTotal")
+    pulse_meta = (
+        meta.get("com.pulsemcp/server") if isinstance(meta.get("com.pulsemcp/server"), dict) else {}
+    )
+    popularity = pulse_meta.get("visitorsEstimateLastFourWeeks") or pulse_meta.get(
+        "visitorsEstimateTotal"
+    )
 
     return CatalogServerDefinition(
         id=f"{source}-{_slugify(raw_name or title)}",
@@ -232,7 +291,9 @@ def _catalog_server_from_registry_entry(source: str, entry: dict[str, Any]) -> C
 
 def _catalog_server_from_smithery(entry: dict[str, Any]) -> CatalogServerDefinition | None:
     qualified_name = _text(entry.get("qualifiedName") or entry.get("qualified_name"))
-    title = _text(entry.get("displayName") or qualified_name or entry.get("name"), "Smithery MCP Server")
+    title = _text(
+        entry.get("displayName") or qualified_name or entry.get("name"), "Smithery MCP Server"
+    )
     if not qualified_name and not title:
         return None
     homepage = _text(entry.get("homepage"))
@@ -258,7 +319,8 @@ def _catalog_server_from_smithery(entry: dict[str, Any]) -> CatalogServerDefinit
         homepageUrl=homepage or None,
         packageId=qualified_name or None,
         installHint=qualified_name or None,
-        externalUrl=homepage or (f"https://smithery.ai/server/{qualified_name}" if qualified_name else None),
+        externalUrl=homepage
+        or (f"https://smithery.ai/server/{qualified_name}" if qualified_name else None),
         verified=bool(entry.get("verified")),
         popularity=entry.get("useCount") if isinstance(entry.get("useCount"), int) else None,
     )
@@ -267,12 +329,21 @@ def _catalog_server_from_smithery(entry: dict[str, Any]) -> CatalogServerDefinit
 def _catalog_server_from_glama(entry: dict[str, Any]) -> CatalogServerDefinition | None:
     namespace = _text(entry.get("namespace") or entry.get("owner") or entry.get("author"))
     slug = _text(entry.get("slug") or entry.get("name") or entry.get("id"))
-    title = _text(entry.get("title") or entry.get("displayName") or entry.get("name") or slug, "Glama MCP Server")
+    title = _text(
+        entry.get("title") or entry.get("displayName") or entry.get("name") or slug,
+        "Glama MCP Server",
+    )
     if not title:
         return None
     repository = entry.get("repository") if isinstance(entry.get("repository"), dict) else {}
-    repository_url = _text(repository.get("url") or entry.get("repositoryUrl") or entry.get("sourceUrl"))
-    external_url = f"https://glama.ai/mcp/servers/{namespace}/{slug}" if namespace and slug else _text(entry.get("url"))
+    repository_url = _text(
+        repository.get("url") or entry.get("repositoryUrl") or entry.get("sourceUrl")
+    )
+    external_url = (
+        f"https://glama.ai/mcp/servers/{namespace}/{slug}"
+        if namespace and slug
+        else _text(entry.get("url"))
+    )
     tags = ["glama"]
     if namespace:
         tags.append(namespace)
@@ -326,14 +397,20 @@ def _extract_next_cursor(payload: dict[str, Any]) -> str | None:
     metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
     page_info = payload.get("pageInfo") if isinstance(payload.get("pageInfo"), dict) else {}
     pagination = payload.get("pagination") if isinstance(payload.get("pagination"), dict) else {}
-    next_cursor = metadata.get("nextCursor") or page_info.get("endCursor") or payload.get("nextCursor")
+    next_cursor = (
+        metadata.get("nextCursor") or page_info.get("endCursor") or payload.get("nextCursor")
+    )
     if next_cursor:
         return str(next_cursor)
     if page_info.get("hasNextPage") and page_info.get("endCursor"):
         return str(page_info["endCursor"])
     current_page = pagination.get("currentPage")
     total_pages = pagination.get("totalPages")
-    if isinstance(current_page, int) and isinstance(total_pages, int) and current_page < total_pages:
+    if (
+        isinstance(current_page, int)
+        and isinstance(total_pages, int)
+        and current_page < total_pages
+    ):
         return str(current_page + 1)
     return None
 
@@ -433,13 +510,21 @@ async def _smithery_provider(query: str, limit: int, cursor: str | None) -> Cata
         params["q"] = query
     try:
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
-            response = await client.get(SMITHERY_REGISTRY_URL, params=params, headers={"Authorization": f"Bearer {api_key}"})
+            response = await client.get(
+                SMITHERY_REGISTRY_URL, params=params, headers={"Authorization": f"Bearer {api_key}"}
+            )
             response.raise_for_status()
             payload = response.json()
     except Exception as exc:  # noqa: BLE001
-        return CatalogProviderResult(CatalogSourceStatus(id="smithery", label="Smithery", enabled=True, ok=False, message=str(exc)))
+        return CatalogProviderResult(
+            CatalogSourceStatus(
+                id="smithery", label="Smithery", enabled=True, ok=False, message=str(exc)
+            )
+        )
     entries = _extract_server_entries(payload if isinstance(payload, dict) else {})
-    servers = [server for entry in entries if (server := _catalog_server_from_smithery(entry)) is not None]
+    servers = [
+        server for entry in entries if (server := _catalog_server_from_smithery(entry)) is not None
+    ]
     return CatalogProviderResult(
         CatalogSourceStatus(id="smithery", label="Smithery", enabled=True, ok=True),
         servers,
@@ -459,9 +544,13 @@ async def _glama_provider(query: str, limit: int, cursor: str | None) -> Catalog
             response.raise_for_status()
             payload = response.json()
     except Exception as exc:  # noqa: BLE001
-        return CatalogProviderResult(CatalogSourceStatus(id="glama", label="Glama", enabled=True, ok=False, message=str(exc)))
+        return CatalogProviderResult(
+            CatalogSourceStatus(id="glama", label="Glama", enabled=True, ok=False, message=str(exc))
+        )
     entries = _extract_server_entries(payload if isinstance(payload, dict) else {})
-    servers = [server for entry in entries if (server := _catalog_server_from_glama(entry)) is not None]
+    servers = [
+        server for entry in entries if (server := _catalog_server_from_glama(entry)) is not None
+    ]
     return CatalogProviderResult(
         CatalogSourceStatus(id="glama", label="Glama", enabled=True, ok=True),
         servers,
@@ -478,20 +567,15 @@ async def search_catalog(
     limit = max(1, min(limit, 100))
     cursor_payload = _decode_cursor(cursor)
     source_cursors: dict[str, str | None] = {
-        key: value for key, value in cursor_payload.get("sourceCursors", {}).items() if isinstance(key, str)
+        key: value
+        for key, value in cursor_payload.get("sourceCursors", {}).items()
+        if isinstance(key, str)
     }
-    buffer_payload = [item for item in cursor_payload.get("buffer", []) if isinstance(item, dict)]
-    buffered = [CatalogServerDefinition(**item) for item in buffer_payload]
+    source_done = {item for item in cursor_payload.get("sourceDone", []) if isinstance(item, str)}
     returned_seen = {item for item in cursor_payload.get("seen", []) if isinstance(item, str)}
     request_keys = set(returned_seen)
 
     items: list[CatalogServerDefinition] = []
-    for server in buffered:
-        key = _dedupe_key(server)
-        if key in request_keys:
-            continue
-        request_keys.add(key)
-        items.append(server)
 
     providers = [("local", _local_provider)]
     if include_external:
@@ -505,24 +589,37 @@ async def search_catalog(
         )
 
     source_statuses: list[CatalogSourceStatus] = []
-    if len(items) < limit:
-        for source_id, provider in providers:
-            result = await provider(query, limit, source_cursors.get(source_id))
-            source_statuses.append(result.source)
+    for source_id, provider in providers:
+        if source_id in source_done:
+            continue
+        remaining = limit - len(items)
+        if remaining <= 0:
+            break
+        result = await provider(query, remaining, source_cursors.get(source_id))
+        source_statuses.append(result.source)
+        if result.next_cursor and len(result.next_cursor) <= MAX_PROVIDER_CURSOR_LENGTH:
             source_cursors[source_id] = result.next_cursor
-            for server in result.servers:
-                key = _dedupe_key(server)
-                if key in request_keys:
-                    continue
-                request_keys.add(key)
-                items.append(server)
-    else:
-        source_statuses = [CatalogSourceStatus(id="buffer", label="Buffered results", enabled=True, ok=True)]
+        else:
+            source_cursors.pop(source_id, None)
+            source_done.add(source_id)
+        for server in result.servers:
+            key = _dedupe_key(server)
+            if key in request_keys:
+                continue
+            request_keys.add(key)
+            items.append(server)
 
     page = items[:limit]
-    rest = [server.model_dump(mode="json") for server in items[limit:]]
     next_seen = set(returned_seen)
     for server in page:
         next_seen.add(_dedupe_key(server))
-    next_cursor = _encode_cursor({"sourceCursors": source_cursors, "buffer": rest, "seen": sorted(next_seen)})
+    provider_ids = {source_id for source_id, _ in providers}
+    next_cursor = _encode_cursor(
+        {
+            "sourceCursors": source_cursors,
+            "sourceDone": source_done,
+            "seen": sorted(next_seen),
+        },
+        has_more=bool(provider_ids - source_done),
+    )
     return CatalogSearchResponse(servers=page, nextCursor=next_cursor, sources=source_statuses)

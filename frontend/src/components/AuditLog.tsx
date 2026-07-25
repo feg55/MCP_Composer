@@ -1,12 +1,12 @@
 import { Activity, CheckCircle2, Info, TriangleAlert, XCircle } from "lucide-react";
+import { memo } from "react";
 
+import { useAuditLog } from "../lib/activityStore";
 import { Panel } from "./Panel";
+import { reportRender } from "../lib/renderAudit";
 import type { AuditLogEntry, LogSeverity } from "../lib/types";
-import { cn, formatTimestamp } from "../lib/utils";
-
-interface AuditLogProps {
-  entries: AuditLogEntry[];
-}
+import { cn } from "../lib/utils";
+import styles from "./AuditLog.module.scss";
 
 const severityIcon: Record<LogSeverity, typeof Info> = {
   info: Info,
@@ -16,37 +16,34 @@ const severityIcon: Record<LogSeverity, typeof Info> = {
 };
 
 const severityClass: Record<LogSeverity, string> = {
-  info: "text-[#9bdaf0]",
-  warning: "text-[#ffd48a]",
-  error: "text-[#ff9c9c]",
-  success: "text-[#9ee7b1]"
+  info: styles.info,
+  warning: styles.warning,
+  error: styles.error,
+  success: styles.success
 };
 
-export function AuditLog({ entries }: AuditLogProps) {
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit"
+});
+
+export const AuditLog = memo(function AuditLog() {
+  if (import.meta.env.DEV) reportRender("AuditLog");
+  const entries = useAuditLog();
+
   return (
     <Panel title="Activity / Audit Log" subtitle="Local action trail for the builder session.">
       {entries.length ? (
-        <div className="scrollbar-thin max-h-[22.5rem] space-y-2 overflow-auto pr-1">
-          {entries.map((entry) => {
-            const Icon = severityIcon[entry.severity];
-            return (
-              <article key={entry.id} className="grid grid-cols-[auto_1fr] gap-3 rounded-md border border-[#343d34] bg-[#202620] p-3">
-                <Icon size="1rem" className={cn("mt-0.5", severityClass[entry.severity])} />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-[0.6875rem] uppercase text-[#a9b4aa]">{entry.type}</span>
-                    <span className="text-[0.6875rem] text-[#6f7a70]">{formatTimestamp(entry.timestamp)}</span>
-                  </div>
-                  <p className="mt-1 text-[0.8125rem] leading-5 text-[#e7ece7]">{entry.message}</p>
-                </div>
-              </article>
-            );
-          })}
+        <div className={styles.entries}>
+          {entries.map((entry) => (
+            <AuditLogRow key={entry.id} entry={entry} />
+          ))}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-[#343d34] bg-[#111510] p-5 text-[0.8125rem] leading-5 text-[#a9b4aa]">
-          <div className="mb-2 flex items-center gap-2 text-[#e7ece7]">
-            <Activity size="1rem" className="text-[#2bb3a3]" />
+        <div className={styles.empty}>
+          <div className={styles.emptyTitle}>
+            <Activity size="1rem" className={styles.activityIcon} />
             No activity yet
           </div>
           Important builder actions will be recorded here.
@@ -54,5 +51,25 @@ export function AuditLog({ entries }: AuditLogProps) {
       )}
     </Panel>
   );
-}
+});
 
+const AuditLogRow = memo(function AuditLogRow({ entry }: { entry: AuditLogEntry }) {
+  if (import.meta.env.DEV) reportRender(`AuditLogRow:${entry.id}`);
+
+  const Icon = severityIcon[entry.severity];
+
+  return (
+    <article className={styles.entry}>
+      <Icon size="1rem" className={cn(styles.severityIcon, severityClass[entry.severity])} />
+      <div className={styles.entryContent}>
+        <div className={styles.meta}>
+          <span className={styles.type}>{entry.type}</span>
+          <time className={styles.time} dateTime={entry.timestamp}>
+            {timeFormatter.format(new Date(entry.timestamp))}
+          </time>
+        </div>
+        <p className={styles.message}>{entry.message}</p>
+      </div>
+    </article>
+  );
+});

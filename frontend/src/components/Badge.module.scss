@@ -1,0 +1,54 @@
+@use "../styles/tokens" as *;
+
+.badge {
+  display: inline-flex;
+  height: 1.5rem;
+  align-items: center;
+  padding-inline: 0.5rem;
+  border: 0.0625rem solid;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.neutral {
+  border-color: $color-border;
+  background: $color-surface-strong;
+  color: $color-text-muted;
+}
+
+.read,
+.ready {
+  border-color: #2f6f45;
+  background: #18331f;
+  color: #9ee7b1;
+}
+
+.write,
+.needsAuth {
+  border-color: #8c6823;
+  background: #342711;
+  color: #ffd48a;
+}
+
+.external {
+  border-color: #2c6f86;
+  background: #142b34;
+  color: #9bdaf0;
+}
+
+.destructive,
+.error {
+  border-color: #7b3030;
+  background: #361717;
+  color: #ff9c9c;
+}
+
+.disabled {
+  border-color: $color-border;
+  background: #161916;
+  color: $color-text-subtle;
+}

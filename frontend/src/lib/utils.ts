@@ -83,7 +83,7 @@ export function createManualServer(input: ManualServerInput): McpServerDefinitio
 }
 
 export function selectedToolsFromServers(servers: McpServerDefinition[]): McpToolDefinition[] {
-  return servers.flatMap((server) => server.tools.filter((tool) => tool.enabled));
+  return servers.flatMap((server) => (server.status === "disabled" ? [] : server.tools.filter((tool) => tool.enabled)));
 }
 
 export function aliasConflicts(tools: McpToolDefinition[]): string[] {
@@ -105,21 +105,6 @@ export function riskCounts(tools: McpToolDefinition[]): Record<RiskLevel, number
     },
     { read: 0, write: 0, external: 0, destructive: 0 }
   );
-}
-
-export function buildWarnings(
-  taskProfile: TaskProfile,
-  servers: McpServerDefinition[],
-  selectedTools: McpToolDefinition[]
-): string[] {
-  const warnings: string[] = [];
-  const conflicts = aliasConflicts(selectedTools);
-  if (conflicts.length) warnings.push(`Alias conflicts: ${conflicts.join(", ")}`);
-  if (selectedTools.some((tool) => tool.riskLevel === "destructive")) warnings.push("Destructive tools are enabled.");
-  if (servers.some((server) => server.status === "error")) warnings.push("One or more servers report an error status.");
-  if (!taskProfile.description.trim()) warnings.push("Task description is missing.");
-  if (!selectedTools.length) warnings.push("No tools selected yet.");
-  return warnings;
 }
 
 export function buildComposition(
@@ -167,12 +152,4 @@ export function downloadText(filename: string, value: string, mime = "applicatio
 
 export function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
-}
-
-export function formatTimestamp(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  }).format(new Date(value));
 }

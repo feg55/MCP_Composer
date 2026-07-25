@@ -4,10 +4,8 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
 from app.main import app
-
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 FIXTURE_SERVER = Path(__file__).parent / "fixtures" / "simple_mcp_server.py"
@@ -51,6 +49,7 @@ def _composition(description: str = "Review repository changes and issue metadat
     server, tools = _discover_fixture_tools()
     tool = deepcopy(next(item for item in tools if item["originalName"] == "echo"))
     tool["enabled"] = True
+    tool["permission"] = "auto"
     return {
         "id": "test-composition",
         "name": "Code Review Gateway",
@@ -93,7 +92,9 @@ def test_catalog_search_returns_paginated_starter_templates_without_external_net
     assert payload["nextCursor"]
     assert payload["sources"][0]["id"] == "local"
 
-    next_response = client.get("/api/catalog/search", params={"limit": 3, "q": "mcp", "cursor": payload["nextCursor"]})
+    next_response = client.get(
+        "/api/catalog/search", params={"limit": 3, "q": "mcp", "cursor": payload["nextCursor"]}
+    )
     assert next_response.status_code == 200
     next_payload = next_response.json()
     assert next_payload["servers"]
@@ -182,7 +183,36 @@ def test_generate_gateway_returns_export_artifacts() -> None:
     assert "exposed_tools" in payload
     assert payload["exposed_tools"][0]["name"]
     assert payload["gateway_config_json"]["runtime"]["connector"] == "mcp-python-sdk"
-    assert payload["mcp_servers_snippet"]["mcpServers"]["code-review-gateway"]["command"] == "python"
+    assert (
+        payload["mcp_servers_snippet"]["mcpServers"]["code-review-gateway"]["command"] == "python"
+    )
+    server_config = payload["mcp_servers_snippet"]["mcpServers"]["code-review-gateway"]
+    assert server_config["args"] == ["-m", "app.gateway_server"]
+    assert server_config["env"] == {
+        "APP_MODE": "local",
+        "PYTHONPATH": "<PATH_TO_MCP_COMPOSER>/backend",
+        "MCP_COMPOSER_CONFIG": (
+            "<PATH_TO_MCP_COMPOSER>/backend/app/generated/code-review-gateway.gateway.config.json"
+        ),
+    }
+    assert (
+        'APP_MODE=local python -m app.gateway_server --config "./app/generated/'
+        'code-review-gateway.gateway.config.json"' in payload["readme_text"]
+    )
+
+
+def test_generate_gateway_rejects_invalid_composition() -> None:
+    invalid = {
+        "id": "invalid",
+        "name": "Invalid Gateway",
+        "description": "Missing servers and selected tools.",
+        "useCase": "Test",
+        "servers": [],
+        "selectedTools": [],
+    }
+    response = client.post("/api/generate-gateway", json=invalid)
+    assert response.status_code == 422
+    assert response.json()["detail"]["errors"]
 
 
 def test_proxy_tool_call_routes_to_real_upstream_mcp_server() -> None:

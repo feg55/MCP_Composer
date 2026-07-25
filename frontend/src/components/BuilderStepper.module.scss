@@ -1,0 +1,123 @@
+@use "../styles/tokens" as *;
+@use "../styles/mixins" as *;
+
+.stepper {
+  padding: 0.5rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+}
+
+.list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.step {
+  @include interactive;
+
+  display: flex;
+  width: 100%;
+  min-height: 4.75rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 0.0625rem solid;
+  border-radius: $radius-sm;
+  text-align: left;
+}
+
+.active {
+  border-color: $color-accent;
+  background: $color-surface-strong;
+}
+
+.available {
+  border-color: $color-border;
+  background: $color-surface-muted;
+
+  &:hover {
+    background: #242a24;
+  }
+}
+
+.locked {
+  cursor: not-allowed;
+  border-color: $color-border-soft;
+  background: $color-surface-muted;
+  opacity: 0.55;
+}
+
+.index {
+  display: flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0.0625rem solid;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.completeIndex {
+  border-color: $color-accent;
+  background: $color-accent;
+  color: $color-page;
+}
+
+.activeIndex {
+  border-color: $color-accent;
+  color: $color-accent;
+}
+
+.inactiveIndex {
+  border-color: $color-border;
+  color: $color-text-muted;
+}
+
+.copy {
+  min-width: 0;
+}
+
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: $color-text;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.count {
+  padding: 0.125rem 0.5rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: 9999px;
+  color: $color-text-muted;
+  font-size: 0.6875rem;
+}
+
+.detail {
+  display: block;
+  margin-top: 0.25rem;
+  color: $color-text-muted;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+@media (min-width: $breakpoint-sm) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: $breakpoint-lg) {
+  .list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

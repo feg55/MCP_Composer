@@ -1,6 +1,9 @@
 import { Map } from "lucide-react";
+import { memo } from "react";
 
 import { Panel } from "./Panel";
+import { reportRender } from "../lib/renderAudit";
+import styles from "./Roadmap.module.scss";
 
 const items = [
   "Connector health monitoring",
@@ -11,17 +14,19 @@ const items = [
   "Registry publishing"
 ];
 
-export function Roadmap() {
+export const Roadmap = memo(function Roadmap() {
+  if (import.meta.env.DEV) reportRender("Roadmap");
+
   return (
     <Panel title="Roadmap" subtitle="Next steps for production operations.">
-      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <div className={styles.grid}>
         {items.map((item) => (
-          <div key={item} className="flex items-center gap-2 rounded-md border border-[#343d34] bg-[#202620] px-3 py-2 text-[0.8125rem] text-[#e7ece7]">
-            <Map size="0.9375rem" className="shrink-0 text-[#2bb3a3]" />
+          <div key={item} className={styles.item}>
+            <Map size="0.9375rem" className={styles.icon} />
             <span>{item}</span>
           </div>
         ))}
       </div>
     </Panel>
   );
-}
+});

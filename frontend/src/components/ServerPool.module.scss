@@ -1,0 +1,93 @@
+@use "../styles/tokens" as *;
+
+.list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card {
+  padding: 1rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-strong;
+}
+
+.cardLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @media (min-width: $breakpoint-xl) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.details {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.title {
+  overflow-wrap: anywhere;
+  color: $color-text;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.description {
+  margin-top: 0.5rem;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  color: $color-text-muted;
+  font-size: 0.75rem;
+}
+
+.metaItem,
+.discoveryRequired {
+  padding: 0.25rem 0.5rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-sm;
+}
+
+.discoveryRequired {
+  border-color: #5f4c26;
+  background: #2c2413;
+  color: #f3cc7a;
+}
+
+.actions {
+  display: grid;
+  gap: 0.5rem;
+
+  @media (min-width: $breakpoint-sm) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+.emptyState {
+  padding: 1.25rem;
+  border: 0.0625rem dashed $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-muted;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}

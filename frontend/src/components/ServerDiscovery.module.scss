@@ -1,0 +1,241 @@
+@use "../styles/tokens" as *;
+@use "../styles/mixins" as *;
+
+.filters {
+  display: grid;
+  gap: 0.75rem;
+
+  @media (min-width: $breakpoint-sm) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: $breakpoint-lg) {
+    grid-template-columns: minmax(0, 1fr) 10rem 9.375rem 9.375rem;
+  }
+}
+
+.searchField {
+  position: relative;
+  display: block;
+}
+
+.visuallyHidden {
+  @include visually-hidden;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 0.75rem;
+  z-index: 1;
+  color: $color-text-subtle;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.input {
+  @include field;
+
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.searchInput {
+  padding-left: 2.25rem;
+}
+
+.sourceStatuses,
+.badgeRow,
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sourceStatuses {
+  margin-top: 0.75rem;
+}
+
+.sourceStatus,
+.sourceTag,
+.tag {
+  padding: 0.25rem 0.5rem;
+  border: 0.0625rem solid;
+  border-radius: 999rem;
+  font-size: 0.6875rem;
+}
+
+.sourceDisabled {
+  border-color: #4a4028;
+  background: #2b2414;
+  color: #ffd48a;
+}
+
+.sourceSynced {
+  border-color: #2f6f45;
+  background: #18331f;
+  color: #9ee7b1;
+}
+
+.sourceError {
+  border-color: #7b3030;
+  background: #361717;
+  color: #ffb3b3;
+}
+
+.sourceUnknown {
+  border-color: $color-border;
+  color: $color-text-muted;
+}
+
+.errorBanner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 0.0625rem solid #7b3030;
+  border-radius: $radius-sm;
+  background: #361717;
+  color: #ffb3b3;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+
+  @media (min-width: $breakpoint-md) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.loading {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-strong;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+}
+
+.catalogGrid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+
+  @media (min-width: $breakpoint-xl) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.card {
+  @include interactive;
+
+  min-width: 0;
+  padding: 1rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-strong;
+
+  &:hover {
+    transform: translateY(-0.0625rem);
+    background: #242a24;
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.cardBody {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cardTitle {
+  overflow-wrap: anywhere;
+  color: $color-text;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.description {
+  margin-top: 0.5rem;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.packageId {
+  @include truncate;
+
+  margin-top: 0.5rem;
+  color: #7edbd0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.badgeRow {
+  margin-top: 1rem;
+}
+
+.tagRow {
+  margin-top: 0.75rem;
+}
+
+.sourceTag {
+  border-color: #2f6f45;
+  color: #9ee7b1;
+}
+
+.tag {
+  border-color: $color-border;
+  color: $color-text-muted;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.endMessage {
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-muted;
+  color: $color-text-muted;
+  font-size: 0.75rem;
+}
+
+.emptyState {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border: 0.0625rem dashed $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-muted;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+}
+
+.emptyTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: $color-text;
+}
+
+.emptyIcon {
+  color: $color-accent;
+}

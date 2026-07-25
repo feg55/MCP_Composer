@@ -1,16 +1,13 @@
 import { ListFilter, PlusCircle } from "lucide-react";
-import type { ReactNode } from "react";
+import { memo, type KeyboardEvent, useCallback, useState } from "react";
 
+import { reportRender } from "../lib/renderAudit";
 import { cn } from "../lib/utils";
+import { ManualServerForm } from "./ManualServerForm";
+import { ServerDiscovery } from "./ServerDiscovery";
+import styles from "./ServerSetupTabs.module.scss";
 
-export type ServerSetupTab = "catalog" | "manual";
-
-interface ServerSetupTabsProps {
-  activeTab: ServerSetupTab;
-  onTabChange: (tab: ServerSetupTab) => void;
-  catalog: ReactNode;
-  manual: ReactNode;
-}
+type ServerSetupTab = "catalog" | "manual";
 
 const tabs = [
   {
@@ -27,12 +24,30 @@ const tabs = [
   }
 ];
 
-export function ServerSetupTabs({ activeTab, onTabChange, catalog, manual }: ServerSetupTabsProps) {
+export const ServerSetupTabs = memo(function ServerSetupTabs() {
+  if (import.meta.env.DEV) reportRender("ServerSetupTabs");
+
+  const [activeTab, setActiveTab] = useState<ServerSetupTab>("catalog");
+
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+    if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabs.length - 1;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    setActiveTab(nextTab.id);
+    document.getElementById(`server-tab-${nextTab.id}`)?.focus();
+  }, []);
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-[#343d34] bg-[#191d19] p-2">
-        <div className="grid gap-2 sm:grid-cols-2" role="tablist" aria-label="Server add mode">
-          {tabs.map((tab) => {
+    <div className={styles.root}>
+      <div className={styles.tabPanel}>
+        <div className={styles.tabList} role="tablist" aria-label="Server add mode" aria-orientation="horizontal">
+          {tabs.map((tab, index) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
@@ -40,17 +55,20 @@ export function ServerSetupTabs({ activeTab, onTabChange, catalog, manual }: Ser
                 key={tab.id}
                 type="button"
                 role="tab"
+                id={`server-tab-${tab.id}`}
+                aria-controls={`server-panel-${tab.id}`}
                 aria-selected={active}
-                onClick={() => onTabChange(tab.id)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md border px-4 py-3 text-left transition",
-                  active ? "border-[#2bb3a3] bg-[#202620]" : "border-[#343d34] bg-[#111510] hover:bg-[#242a24]"
-                )}
+                tabIndex={active ? 0 : -1}
+                onClick={() => {
+                  if (!active) setActiveTab(tab.id);
+                }}
+                onKeyDown={(event) => handleKeyDown(event, index)}
+                className={cn(styles.tab, active && styles.activeTab)}
               >
-                <Icon size="1.0625rem" className={active ? "text-[#2bb3a3]" : "text-[#a9b4aa]"} />
+                <Icon size="1.0625rem" className={active ? styles.activeIcon : styles.icon} />
                 <span>
-                  <span className="block text-[0.8125rem] font-semibold text-[#e7ece7]">{tab.label}</span>
-                  <span className="block text-[0.75rem] text-[#a9b4aa]">{tab.detail}</span>
+                  <span className={styles.label}>{tab.label}</span>
+                  <span className={styles.detail}>{tab.detail}</span>
                 </span>
               </button>
             );
@@ -58,8 +76,15 @@ export function ServerSetupTabs({ activeTab, onTabChange, catalog, manual }: Ser
         </div>
       </div>
 
-      <div hidden={activeTab !== "catalog"}>{catalog}</div>
-      <div hidden={activeTab !== "manual"}>{manual}</div>
+      {activeTab === "catalog" ? (
+        <div id="server-panel-catalog" role="tabpanel" aria-labelledby="server-tab-catalog">
+          <ServerDiscovery />
+        </div>
+      ) : (
+        <div id="server-panel-manual" role="tabpanel" aria-labelledby="server-tab-manual">
+          <ManualServerForm />
+        </div>
+      )}
     </div>
   );
-}
+});

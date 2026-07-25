@@ -1,0 +1,75 @@
+@use "../styles/tokens" as *;
+@use "../styles/mixins" as *;
+
+.button {
+  @include interactive;
+
+  display: inline-flex;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-inline: 0.75rem;
+  border: 0.0625rem solid transparent;
+  border-radius: $radius-sm;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:focus-visible {
+    outline: 0.125rem solid $color-accent;
+    outline-offset: 0.125rem;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.primary {
+  border-color: $color-accent;
+  background: $color-accent;
+  color: $color-page;
+  font-weight: 700;
+
+  &:not(:disabled):hover {
+    border-color: #39c9b8;
+    background: #39c9b8;
+  }
+}
+
+.secondary {
+  border-color: $color-border;
+  background: $color-surface-strong;
+  color: $color-text;
+
+  &:not(:disabled):hover {
+    background: #242a24;
+  }
+}
+
+.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: $color-text-muted;
+
+  &:not(:disabled):hover {
+    background: #242a24;
+    color: $color-text;
+  }
+}
+
+.danger {
+  border-color: #633232;
+  background: #2a1717;
+  color: #ff9c9c;
+
+  &:not(:disabled):hover {
+    background: #3a1d1d;
+  }
+}

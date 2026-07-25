@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import html
+import re
+from pathlib import Path
 from typing import Any
 
 from app.core.composition import selected_enabled_tools, validate_composition
@@ -13,6 +16,27 @@ from app.core.types import (
     ProxyToolCallRequest,
     ProxyToolCallResponse,
 )
+
+
+class InvalidCompositionError(ValueError):
+    def __init__(self, errors: list[str]) -> None:
+        self.errors = errors
+        super().__init__("Gateway composition is invalid.")
+
+
+MARKDOWN_SPECIAL = re.compile(r"([\\`*_{}\[\]()#+.!|>~-])")
+PORTABLE_PROJECT_ROOT = "<PATH_TO_MCP_COMPOSER>"
+
+
+def _markdown_text(value: str, *, single_line: bool = False) -> str:
+    normalized = " ".join(value.splitlines()) if single_line else value
+    escaped_html = html.escape(normalized, quote=True)
+    return MARKDOWN_SPECIAL.sub(r"\\\1", escaped_html)
+
+
+def _markdown_code(value: object) -> str:
+    escaped = html.escape(str(value), quote=False).replace("`", "&#96;")
+    return f"`{escaped}`"
 
 
 def slugify(value: str) -> str:
@@ -83,7 +107,7 @@ def generate_gateway_config(composition: McpComposition) -> dict[str, Any]:
         "policies": policies,
         "validation": validation.model_dump(mode="json"),
         "runtime": {
-            "mode": "local",
+            "requiredAppMode": "local",
             "connector": "mcp-python-sdk",
             "gatewayCommand": "python -m app.gateway_server",
             "proxyEndpoint": "/api/proxy-tool-call",
@@ -91,32 +115,55 @@ def generate_gateway_config(composition: McpComposition) -> dict[str, Any]:
     }
 
 
+def _portable_config_path(slug: str) -> str:
+    return f"{PORTABLE_PROJECT_ROOT}/backend/app/generated/{slug}.gateway.config.json"
+
+
 def create_mcp_server_config_snippet(composition: McpComposition) -> dict[str, Any]:
     gateway_name = slugify(composition.name)
+    config_path = _portable_config_path(gateway_name)
     return {
         "mcpServers": {
             gateway_name: {
                 "command": "python",
-                "args": ["-m", "app.gateway_server", "--config", f"./generated/{gateway_name}.gateway.config.json"],
+                "args": ["-m", "app.gateway_server"],
                 "env": {
-                    "MCP_COMPOSER_CONFIG": f"./generated/{gateway_name}.gateway.config.json",
+                    "APP_MODE": "local",
+                    "PYTHONPATH": f"{PORTABLE_PROJECT_ROOT}/backend",
+                    "MCP_COMPOSER_CONFIG": config_path,
                 },
             }
         }
     }
 
 
-def build_readme_text(composition: McpComposition, exposed_tools: list[dict[str, Any]]) -> str:
+def build_readme_text(
+    composition: McpComposition,
+    exposed_tools: list[dict[str, Any]],
+) -> str:
+    config_path = f"./app/generated/{slugify(composition.name)}.gateway.config.json"
     lines = [
-        f"# {composition.name}",
+        f"# {_markdown_text(composition.name, single_line=True)}",
         "",
-        composition.description or "Generated MCP Composer gateway.",
+        _markdown_text(
+            composition.description or "Generated MCP Composer gateway.",
+        ),
         "",
         "## Local run",
         "",
+        "PowerShell:",
+        "",
+        "```powershell",
+        "cd backend",
+        '$env:APP_MODE = "local"',
+        f'python -m app.gateway_server --config "{config_path}"',
+        "```",
+        "",
+        "Bash:",
+        "",
         "```bash",
         "cd backend",
-        f"python -m app.gateway_server --config ./generated/{slugify(composition.name)}.gateway.config.json",
+        f'APP_MODE=local python -m app.gateway_server --config "{config_path}"',
         "```",
         "",
         "## Exposed tools",
@@ -124,7 +171,12 @@ def build_readme_text(composition: McpComposition, exposed_tools: list[dict[str,
     ]
     if exposed_tools:
         for tool in exposed_tools:
-            lines.append(f"- `{tool['name']}` -> `{tool['serverName']}.{tool['originalName']}` ({tool['riskLevel']}, {tool['permission']})")
+            route = f"{tool['serverName']}.{tool['originalName']}"
+            lines.append(
+                f"- {_markdown_code(tool['name'])} -> {_markdown_code(route)} "
+                f"({_markdown_text(str(tool['riskLevel']))}, "
+                f"{_markdown_text(str(tool['permission']))})"
+            )
     else:
         lines.append("- No tools selected.")
     lines.extend(
@@ -139,13 +191,23 @@ def build_readme_text(composition: McpComposition, exposed_tools: list[dict[str,
     return "\n".join(lines)
 
 
-def generate_gateway_response(composition: McpComposition) -> GeneratedGatewayResponse:
+def generate_gateway_response(
+    composition: McpComposition,
+    data_dir: Path | None = None,
+    *,
+    persist: bool = True,
+) -> GeneratedGatewayResponse:
+    validation = validate_composition(composition)
+    if not validation.valid:
+        raise InvalidCompositionError(validation.errors)
+
     exposed_tools = list_exposed_tools(composition)
     gateway_config = generate_gateway_config(composition)
     slug = slugify(composition.name)
     composition_json = composition.model_dump(mode="json")
-    save_json(f"{slug}.composition.json", composition_json)
-    save_json(f"{slug}.gateway.config.json", gateway_config)
+    if persist:
+        save_json(f"{slug}.composition.json", composition_json, data_dir)
+        save_json(f"{slug}.gateway.config.json", gateway_config, data_dir)
     return GeneratedGatewayResponse(
         composition_json=composition_json,
         gateway_config_json=gateway_config,
@@ -183,13 +245,25 @@ async def proxy_tool_call(
 
     tool = _find_tool(request.composition, request.toolName)
     if not tool:
-        return ProxyToolCallResponse(ok=False, toolName=request.toolName, error="Tool was not found in composition.")
+        return ProxyToolCallResponse(
+            ok=False, toolName=request.toolName, error="Tool was not found in composition."
+        )
     if tool.permission == "disabled":
-        return ProxyToolCallResponse(ok=False, toolName=request.toolName, error="Tool is disabled by policy.")
+        return ProxyToolCallResponse(
+            ok=False, toolName=request.toolName, error="Tool is disabled by policy."
+        )
+    if tool.permission == "require_approval":
+        return ProxyToolCallResponse(
+            ok=False,
+            toolName=request.toolName,
+            error="Tool execution requires approval, but no approval flow is configured.",
+        )
 
     server = _find_server(request.composition.servers, tool.serverId)
     if not server:
-        return ProxyToolCallResponse(ok=False, toolName=request.toolName, error="Upstream server was not found.")
+        return ProxyToolCallResponse(
+            ok=False, toolName=request.toolName, error="Upstream server was not found."
+        )
 
     try:
         result = await connector.call_tool(server, tool, request.input)

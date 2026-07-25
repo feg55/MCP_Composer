@@ -1,0 +1,42 @@
+@use "../styles/tokens" as *;
+@use "../styles/mixins" as *;
+
+.profileGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.fieldGroup {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.fieldGroupWide {
+  grid-column: 1 / -1;
+}
+
+.fieldLabel {
+  color: $color-text;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.field {
+  @include field;
+
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.textArea {
+  min-height: 5.75rem;
+  resize: vertical;
+}
+
+@media (min-width: $breakpoint-md) {
+  .profileGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

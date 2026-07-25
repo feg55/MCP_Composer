@@ -55,7 +55,9 @@ def validate_composition(composition: McpComposition) -> ValidationResult:
         errors.append("Select at least one enabled tool.")
 
     aliases = [tool.exposedName.strip() for tool in selected_tools]
-    duplicate_aliases = sorted(alias for alias, count in Counter(aliases).items() if alias and count > 1)
+    duplicate_aliases = sorted(
+        alias for alias, count in Counter(aliases).items() if alias and count > 1
+    )
     if duplicate_aliases:
         errors.append(f"Alias conflicts detected: {', '.join(duplicate_aliases)}.")
     if any(not alias for alias in aliases):
@@ -71,7 +73,9 @@ def validate_composition(composition: McpComposition) -> ValidationResult:
         if tool.riskLevel in {"write", "external"} and tool.permission == "auto"
     ]
     if approval_suggested:
-        warnings.append(f"Write/external tools set to auto approval: {', '.join(approval_suggested)}.")
+        warnings.append(
+            f"Write/external tools set to auto approval: {', '.join(approval_suggested)}."
+        )
 
     server_by_id = {server.id: server for server in composition.servers}
     errored_servers = [server.name for server in composition.servers if server.status == "error"]
@@ -79,24 +83,22 @@ def validate_composition(composition: McpComposition) -> ValidationResult:
         warnings.append(f"Servers with error status: {', '.join(errored_servers)}.")
 
     disabled_servers = {
-        server.id: server.name
-        for server in composition.servers
-        if server.status == "disabled"
+        server.id: server.name for server in composition.servers if server.status == "disabled"
     }
     selected_from_disabled = [
-        tool.exposedName
-        for tool in selected_tools
-        if tool.serverId in disabled_servers
+        tool.exposedName for tool in selected_tools if tool.serverId in disabled_servers
     ]
     if selected_from_disabled:
-        errors.append(f"Selected tools belong to disabled servers: {', '.join(selected_from_disabled)}.")
+        errors.append(
+            f"Selected tools belong to disabled servers: {', '.join(selected_from_disabled)}."
+        )
 
     missing_server_refs = [
-        tool.exposedName
-        for tool in selected_tools
-        if tool.serverId not in server_by_id
+        tool.exposedName for tool in selected_tools if tool.serverId not in server_by_id
     ]
     if missing_server_refs:
-        errors.append(f"Selected tools reference missing servers: {', '.join(missing_server_refs)}.")
+        errors.append(
+            f"Selected tools reference missing servers: {', '.join(missing_server_refs)}."
+        )
 
     return ValidationResult(valid=not errors, warnings=warnings, errors=errors)

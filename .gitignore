@@ -9,9 +9,18 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.hypothesis/
+.nox/
+.pytype/
+.tox/
+*.egg-info/
+.eggs/
+__pypackages__/
 .coverage
+.coverage.*
 coverage.xml
 htmlcov/
+site/
 
 # Virtual environments
 .venv/
@@ -24,6 +33,14 @@ dist/
 build/
 frontend/dist/
 frontend/.vite/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.sass-cache/
+coverage/
+playwright-report/
+test-results/
+vite.config.*.timestamp-*
 
 # Environment files
 .env
@@ -35,10 +52,15 @@ frontend/.env.*
 backend/.env
 backend/.env.*
 !backend/.env.example
+.envrc
+!.envrc.example
+.direnv/
 
 # Generated gateway configs and exports
 backend/app/generated/*
 !backend/app/generated/.gitkeep
+*.gateway.config.json
+*.composition.json
 
 # Logs
 *.log
@@ -52,10 +74,17 @@ pnpm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+*.swp
+*~
 
 # Misc
+tmp/
 .next/
 .cache/
+.netlify/
+.vercel/
+.wrangler/
+*.tmp
 
 # Local databases and private keys
 *.sqlite
@@ -65,3 +94,12 @@ Thumbs.db
 *.key
 *.p12
 *.pfx
+*.jks
+*.keystore
+.npmrc
+!.npmrc.example
+.npmrc.local
+.pypirc
+pip.conf
+credentials*.json
+secrets*.json

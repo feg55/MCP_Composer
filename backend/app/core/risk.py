@@ -4,7 +4,6 @@ from typing import Any
 
 from app.core.types import PermissionMode, RiskLevel
 
-
 DESTRUCTIVE_KEYWORDS = ("delete", "drop", "remove", "destroy", "truncate", "purge")
 EXTERNAL_KEYWORDS = ("send", "publish", "notify", "web_search", "fetch_page", "summarize_page")
 WRITE_KEYWORDS = ("create", "update", "write", "insert", "restart", "mutate", "apply", "merge")
@@ -29,11 +28,10 @@ def detect_tool_risk(
     schema_text = str(input_schema or {}).lower()
     if "mutation" in schema_text or "write" in schema_text:
         return "write"
-    return "read"
+    return "external"
 
 
 def default_permission_for_risk(risk_level: RiskLevel) -> PermissionMode:
     if risk_level in {"destructive", "write", "external"}:
         return "require_approval"
     return "auto"
-

@@ -113,8 +113,6 @@ export interface TaskProfile {
 export interface AppPersistedState {
   taskProfile: TaskProfile;
   serverPool: McpServerDefinition[];
-  selectedTools: McpToolDefinition[];
-  generated: GeneratedGatewayResponse | null;
   auditLog: AuditLogEntry[];
 }
 

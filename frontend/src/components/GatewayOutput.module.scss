@@ -1,0 +1,92 @@
+@use "../styles/tokens" as *;
+
+.empty {
+  padding: 1.25rem;
+  border: 0.0625rem dashed $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface-muted;
+  color: $color-text-muted;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.actions {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.blocks {
+  display: grid;
+  gap: 1rem;
+}
+
+.outputBlock {
+  min-width: 0;
+  overflow: hidden;
+  border: 0.0625rem solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface-strong;
+}
+
+.outputHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 0.0625rem solid $color-border;
+}
+
+.outputTitle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  color: $color-text;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.outputIcon {
+  flex: none;
+  color: $color-accent;
+}
+
+.code {
+  max-height: 20rem;
+  min-width: 0;
+  padding: 1rem;
+  overflow: auto;
+  color: #cdd6cd;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  scrollbar-color: #3a443a $color-surface-muted;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 0.5rem;
+    height: 0.5rem;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $color-surface-muted;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: #3a443a;
+  }
+}
+
+@media (min-width: $breakpoint-md) {
+  .actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: $breakpoint-xl) {
+  .actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

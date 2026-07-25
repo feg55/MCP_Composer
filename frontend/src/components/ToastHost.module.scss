@@ -1,0 +1,27 @@
+@use "../styles/tokens" as *;
+
+.toast {
+  border: 0.0625rem solid;
+  border-radius: $radius-sm;
+  padding: 0.75rem 1rem;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.toastError {
+  border-color: #7b3030;
+  background: #361717;
+  color: #ffb3b3;
+}
+
+.toastWarning {
+  border-color: #8c6823;
+  background: #342711;
+  color: #ffd48a;
+}
+
+.toastSuccess {
+  border-color: #2f6f45;
+  background: #18331f;
+  color: #9ee7b1;
+}
