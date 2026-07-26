@@ -7,6 +7,8 @@ Build one focused MCP gateway from a curated set of upstream servers, tools, ali
 > [!IMPORTANT]
 > Local mode can launch arbitrary stdio MCP commands and is intended only for a trusted workstation. Use hosted mode for deployment. Public deployments still need authentication at the reverse proxy or identity-aware gateway.
 
+<img width="1934" height="1179" alt="mcpC2" src="https://github.com/user-attachments/assets/b0386207-a643-410c-bc9a-7b110df786e7" />
+
 ## What it does
 
 - Searches local and external MCP catalogs.
