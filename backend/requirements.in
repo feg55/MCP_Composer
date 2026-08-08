@@ -1,6 +1,6 @@
 # Direct production dependencies.
 # Regenerate requirements.txt with the command documented in README.md.
-fastapi>=0.115,<1
+fastapi>=0.141.1,<1
 httpx>=0.28,<1
 mcp>=1.12,<2
 pydantic>=2.11,<3
