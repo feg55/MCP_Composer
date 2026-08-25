@@ -2,6 +2,8 @@ services:
   composer:
     build:
       context: .
+      args:
+        MCP_COMPOSER_VERSION: ${MCP_COMPOSER_VERSION:-0.1.0}
     image: mcp-composer:local
     init: true
     restart: unless-stopped

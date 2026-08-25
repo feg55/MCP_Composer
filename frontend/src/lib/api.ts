@@ -52,7 +52,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  health: () => request<{ status: string; service: string }>("/api/health"),
+  health: () => request<{ status: string; service: string; mode: string; version: string }>("/api/health"),
   catalog: () => request<McpServerDefinition[]>("/api/catalog"),
   searchCatalog: ({ query, cursor, limit = 30 }: { query?: string; cursor?: string | null; limit?: number }) => {
     const params = new URLSearchParams();

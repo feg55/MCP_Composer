@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 
+ARG MCP_COMPOSER_VERSION=0.1.0
+
 FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS frontend-build
+ARG MCP_COMPOSER_VERSION
+ENV VITE_APP_VERSION=${MCP_COMPOSER_VERSION}
 WORKDIR /build/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
@@ -10,9 +14,11 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
+ARG MCP_COMPOSER_VERSION
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    MCP_COMPOSER_VERSION=${MCP_COMPOSER_VERSION} \
     APP_MODE=hosted \
     FRONTEND_DIST_DIR=/app/frontend/dist \
     MCP_COMPOSER_DOCS_ENABLED=false \

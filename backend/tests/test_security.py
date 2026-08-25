@@ -34,11 +34,13 @@ def _settings(
     tmp_path: Path,
     *,
     mode: str = "local",
+    app_version: str = "0.1.0",
     frontend_dist_dir: Path | None = None,
     max_request_bytes: int = 1_000_000,
 ) -> Settings:
     hosted = mode == "hosted"
     return Settings(
+        app_version=app_version,
         app_mode="hosted" if hosted else "local",
         allowed_origins=("https://composer.example",),
         allowed_hosts=("testserver", "composer.example"),
@@ -258,9 +260,10 @@ def test_api_rejects_streamed_body_without_content_length(tmp_path: Path) -> Non
 
 
 def test_security_headers_and_trusted_hosts(tmp_path: Path) -> None:
-    client = TestClient(create_app(_settings(tmp_path, mode="hosted")))
+    client = TestClient(create_app(_settings(tmp_path, mode="hosted", app_version="9.8.7")))
     response = client.get("/api/health")
     assert response.status_code == 200
+    assert response.json()["version"] == "9.8.7"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert "default-src 'self'" in response.headers["content-security-policy"]

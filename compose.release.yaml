@@ -1,0 +1,35 @@
+name: mcp-composer
+
+services:
+  composer:
+    image: ${MCP_COMPOSER_IMAGE:-ghcr.io/feg55/mcp-composer}:${MCP_COMPOSER_VERSION:-0.1.0}
+    pull_policy: missing
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MCP_COMPOSER_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      APP_MODE: local
+      FRONTEND_DIST_DIR: /app/frontend/dist
+      MCP_COMPOSER_VERSION: ${MCP_COMPOSER_VERSION:-0.1.0}
+      MCP_COMPOSER_ALLOWED_ORIGINS: http://localhost:${MCP_COMPOSER_PORT:-8000},http://127.0.0.1:${MCP_COMPOSER_PORT:-8000}
+      MCP_COMPOSER_ALLOWED_HOSTS: localhost,127.0.0.1
+      MCP_COMPOSER_DATA_DIR: /tmp/generated
+      MCP_COMPOSER_DOCS_ENABLED: "false"
+      MCP_COMPOSER_REQUIRE_ORIGIN: "false"
+      MCP_COMPOSER_MAX_REQUEST_BYTES: "1000000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    stop_grace_period: 20s

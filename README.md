@@ -141,10 +141,21 @@ For a real domain:
 
 Do not expose `APP_MODE=local` to a network.
 
+## Versioned releases
+
+Git tags matching `vX.Y.Z` publish a multi-platform image for `linux/amd64` and `linux/arm64` to `ghcr.io/feg55/mcp-composer`. The same workflow creates portable Windows and Linux launcher bundles with SHA-256 checksums.
+
+Published images include SBOM, BuildKit provenance, and a GitHub artifact attestation.
+
+Release defaults are loopback-only. Windows opens the browser after the container healthcheck. Linux defaults to headless operation and prints an SSH tunnel command. See [RELEASE.md](RELEASE.md) for installation, systemd, update, rollback, and the separate authenticated hosted profile.
+
+Before publishing the first release, set the `mcp-composer` package visibility in GHCR to public so users can pull it without a registry login.
+
 ## Environment variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `MCP_COMPOSER_VERSION` | `0.1.0` | Version reported by the API and embedded into release builds. |
 | `APP_MODE` | Unset: fail-closed hosted path; image: `hosted` | Selects `local` or `hosted` security behavior. Hosted startup fails without exact origins and hosts. |
 | `MCP_COMPOSER_ALLOWED_ORIGINS` | Local Vite origins | Exact browser origins accepted by CORS and Origin validation. Required in hosted mode. |
 | `MCP_COMPOSER_ALLOWED_HOSTS` | Local hosts | Exact HTTP Host values accepted by TrustedHostMiddleware. Required in hosted mode. |
@@ -224,6 +235,9 @@ APP_MODE=local python -m app.gateway_server --config ./app/generated/<gateway>.g
 │   │   └── styles/            global tokens, mixins, and reset
 │   └── vite.config.ts
 ├── compose.yaml
+├── compose.release.yaml
+├── compose.hosted.yaml
+├── release/                 Windows and Linux launchers
 └── Dockerfile
 ```
 

@@ -198,7 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     openapi_url = "/openapi.json" if resolved.docs_enabled else None
     application = FastAPI(
         title="MCP Composer API",
-        version="0.1.0",
+        version=resolved.app_version,
         description="Builder API for composing multiple MCP servers into a single gateway configuration.",
         docs_url=docs_url,
         redoc_url=redoc_url,
@@ -233,6 +233,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "status": "ok",
             "service": "mcp-composer-api",
             "mode": resolved.app_mode,
+            "version": resolved.app_version,
         }
 
     if resolved.frontend_dist_dir is not None:

@@ -39,6 +39,7 @@ def _positive_int(value: str | None, default: int) -> int:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
+    app_version: str = "0.1.0"
     app_mode: AppMode = "local"
     allowed_origins: tuple[str, ...] = (
         "http://localhost:5173",
@@ -128,6 +129,7 @@ class Settings:
         )
         dist_value = os.getenv("FRONTEND_DIST_DIR")
         return cls(
+            app_version=os.getenv("MCP_COMPOSER_VERSION", "0.1.0").strip() or "0.1.0",
             app_mode=mode,
             allowed_origins=origins,
             allowed_hosts=hosts,

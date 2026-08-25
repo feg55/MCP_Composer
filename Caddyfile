@@ -1,0 +1,10 @@
+{$MCP_COMPOSER_DOMAIN} {
+	encode zstd gzip
+
+	basic_auth {
+		{$MCP_COMPOSER_USERNAME} {$MCP_COMPOSER_PASSWORD_HASH}
+	}
+
+	reverse_proxy composer:8000
+}
+

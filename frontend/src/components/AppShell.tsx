@@ -16,6 +16,7 @@ interface AppLayoutProps {
 }
 
 const API_BASE_LABEL = API_BASE_URL || "same origin";
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || "dev";
 
 export function AppShell({ children }: AppShellProps) {
   if (import.meta.env.DEV) reportRender("AppShell");
@@ -83,6 +84,7 @@ const AppFooter = memo(function AppFooter() {
         <FileText size="0.875rem" className={styles.footerIcon} />
         Current output size: <OutputSize />
       </span>
+      <span className={styles.footerItem}>Version: {APP_VERSION}</span>
     </footer>
   );
 });
