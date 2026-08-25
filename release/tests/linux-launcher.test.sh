@@ -27,14 +27,14 @@ curl() {
 export -f docker curl
 
 LAUNCHER=${REPOSITORY_DIR}/release/linux/mcp-composer.sh
-"${LAUNCHER}" start --port 18080 --version 0.1.0
+bash "${LAUNCHER}" start --port 18080 --version 0.1.0
 grep --fixed-strings 'MCP_COMPOSER_PORT=18080' "${XDG_CONFIG_HOME}/mcp-composer/composer.env"
 grep --fixed-strings 'up --detach --pull always --wait --wait-timeout 120' "${MCP_COMPOSER_TEST_DOCKER_LOG}"
 
-"${LAUNCHER}" update --version 0.1.0
+bash "${LAUNCHER}" update --version 0.1.0
 grep --fixed-strings 'pull composer' "${MCP_COMPOSER_TEST_DOCKER_LOG}"
 
-"${LAUNCHER}" status
-"${LAUNCHER}" stop
-"${LAUNCHER}" uninstall --purge-config
+bash "${LAUNCHER}" status
+bash "${LAUNCHER}" stop
+bash "${LAUNCHER}" uninstall --purge-config
 [[ ! -e "${XDG_CONFIG_HOME}/mcp-composer/composer.env" ]]
