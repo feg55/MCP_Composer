@@ -214,8 +214,15 @@ jobs:
           )
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
+            gh release edit "${GITHUB_REF_NAME}" \
+              --title "MCP Composer ${GITHUB_REF_NAME}" \
+              --notes-file release/RELEASE_BODY.md
           else
-            flags=(--verify-tag --generate-notes --title "MCP Composer ${GITHUB_REF_NAME}")
+            flags=(
+              --verify-tag
+              --title "MCP Composer ${GITHUB_REF_NAME}"
+              --notes-file release/RELEASE_BODY.md
+            )
             if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
               flags+=(--prerelease)
             fi

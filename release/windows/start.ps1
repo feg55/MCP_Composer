@@ -102,16 +102,27 @@ function Set-ConfigValue([string]$Key, [string]$Value) {
     Write-Utf8File $ConfigFile $Lines.ToArray()
 }
 
+function Invoke-DockerProbe([string[]]$Arguments) {
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Docker may print harmless daemon capability warnings to stderr even
+        # when the command succeeds. Only its exit code is relevant here.
+        $ErrorActionPreference = "SilentlyContinue"
+        & docker @Arguments *> $null
+        return [int]$LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+}
+
 function Assert-Docker {
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
         Stop-WithError "Docker was not found. Install and start Docker Desktop, then retry."
     }
-    & docker info *> $null
-    if ($LASTEXITCODE -ne 0) {
+    if ((Invoke-DockerProbe @("info")) -ne 0) {
         Stop-WithError "Docker Desktop is installed but its engine is not running."
     }
-    & docker compose version *> $null
-    if ($LASTEXITCODE -ne 0) {
+    if ((Invoke-DockerProbe @("compose", "version")) -ne 0) {
         Stop-WithError "Docker Compose v2 is required."
     }
 }

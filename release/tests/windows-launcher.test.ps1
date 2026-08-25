@@ -10,6 +10,9 @@ $env:MCP_COMPOSER_LAUNCHER_CONFIG_DIR = Join-Path $TestDirectory "config"
 function global:docker {
     $Arguments = @($args | ForEach-Object { [string]$_ })
     Add-Content -LiteralPath $DockerLog -Value ($Arguments -join " ")
+    if ($Arguments.Count -gt 0 -and $Arguments[0] -eq "info") {
+        Write-Error "WARNING: No blkio throttle.read_iops_device support"
+    }
     $global:LASTEXITCODE = 0
 }
 

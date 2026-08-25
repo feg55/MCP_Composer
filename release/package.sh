@@ -18,8 +18,8 @@ mkdir -p -- "${WINDOWS_DIR}/hosted" "${LINUX_DIR}/hosted"
 cp \
     "${REPOSITORY_DIR}/VERSION" \
     "${REPOSITORY_DIR}/compose.release.yaml" \
-    "${REPOSITORY_DIR}/RELEASE.md" \
     "${WINDOWS_DIR}/"
+cp "${REPOSITORY_DIR}/RELEASE.md" "${WINDOWS_DIR}/README.md"
 cp "${REPOSITORY_DIR}"/release/windows/* "${WINDOWS_DIR}/"
 cp \
     "${REPOSITORY_DIR}/compose.hosted.yaml" \
@@ -30,8 +30,8 @@ cp \
 cp \
     "${REPOSITORY_DIR}/VERSION" \
     "${REPOSITORY_DIR}/compose.release.yaml" \
-    "${REPOSITORY_DIR}/RELEASE.md" \
     "${LINUX_DIR}/"
+cp "${REPOSITORY_DIR}/RELEASE.md" "${LINUX_DIR}/README.md"
 cp "${REPOSITORY_DIR}"/release/linux/* "${LINUX_DIR}/"
 cp \
     "${REPOSITORY_DIR}/compose.hosted.yaml" \
