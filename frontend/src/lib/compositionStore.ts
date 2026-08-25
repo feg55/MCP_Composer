@@ -35,6 +35,7 @@ export interface CompositionSnapshot {
   outputSize: number;
   testingServerIds: ReadonlySet<string>;
   discoveringServerIds: ReadonlySet<string>;
+  credentialsByServerId: ReadonlyMap<string, Readonly<Record<string, string>>>;
   focusServerId: string | null;
   isGenerating: boolean;
   activeStep: BuilderStep;
@@ -45,6 +46,7 @@ interface CompositionCore {
   generated: GeneratedGatewayResponse | null;
   testingServerIds: ReadonlySet<string>;
   discoveringServerIds: ReadonlySet<string>;
+  credentialsByServerId: ReadonlyMap<string, Readonly<Record<string, string>>>;
   focusServerId: string | null;
   isGenerating: boolean;
   activeStep: BuilderStep;
@@ -59,6 +61,7 @@ const EMPTY_TOOLS: McpToolDefinition[] = [];
 const EMPTY_CONFLICTS: string[] = [];
 const EMPTY_CONFLICT_KEYS = new Map<string, string>();
 const EMPTY_OPERATIONS = new Set<string>();
+const EMPTY_CREDENTIALS = new Map<string, Readonly<Record<string, string>>>();
 const listeners = new Set<Listener>();
 
 function sameItems<T>(left: readonly T[], right: readonly T[]): boolean {
@@ -142,6 +145,7 @@ const initialCore: CompositionCore = {
   generated: null,
   testingServerIds: EMPTY_OPERATIONS,
   discoveringServerIds: EMPTY_OPERATIONS,
+  credentialsByServerId: EMPTY_CREDENTIALS,
   focusServerId: null,
   isGenerating: false,
   activeStep: "profile"
@@ -169,6 +173,7 @@ function commit(patch: CorePatch): void {
     generated: snapshot.generated,
     testingServerIds: snapshot.testingServerIds,
     discoveringServerIds: snapshot.discoveringServerIds,
+    credentialsByServerId: snapshot.credentialsByServerId,
     focusServerId: snapshot.focusServerId,
     isGenerating: snapshot.isGenerating,
     activeStep: snapshot.activeStep
@@ -251,6 +256,11 @@ function isBusy(serverId: string): boolean {
   return snapshot.testingServerIds.has(serverId) || snapshot.discoveringServerIds.has(serverId);
 }
 
+function withRuntimeCredentials(server: McpServerDefinition): McpServerDefinition {
+  const credentials = snapshot.credentialsByServerId.get(server.id);
+  return credentials ? { ...server, env: { ...server.env, ...credentials } } : server;
+}
+
 function canEnterStep(step: BuilderStep, current = snapshot): boolean {
   if (step === "tools") return current.hasDiscoveredTools;
   if (step === "output") return current.generated !== null;
@@ -265,7 +275,7 @@ async function inspectServer(serverId: string): Promise<void> {
 
   commit({ discoveringServerIds: new Set(snapshot.discoveringServerIds).add(serverId) });
   try {
-    const result = await api.discoverTools(server);
+    const result = await api.discoverTools(withRuntimeCredentials(server));
     if (operationEpoch !== storeEpoch) return;
     const current = snapshot.serverById.get(serverId);
     const mappedPool = current
@@ -328,7 +338,7 @@ async function testConnection(serverId: string): Promise<void> {
 
   commit({ testingServerIds: new Set(snapshot.testingServerIds).add(serverId) });
   try {
-    const result = await api.testConnection(server);
+    const result = await api.testConnection(withRuntimeCredentials(server));
     if (operationEpoch !== storeEpoch) return;
     const current = snapshot.serverById.get(serverId);
     const mappedPool = current
@@ -434,8 +444,11 @@ export const compositionActions = {
       return;
     }
 
+    const credentialsByServerId = new Map(snapshot.credentialsByServerId);
+    credentialsByServerId.delete(serverId);
     commitCompositionMutation({
       serverPool: snapshot.serverPool.filter((item) => item.id !== serverId),
+      credentialsByServerId,
       focusServerId: snapshot.focusServerId === serverId ? null : snapshot.focusServerId
     });
     pushAudit("server_removed", `${server.name} removed from the pool.`, "warning");
@@ -447,6 +460,24 @@ export const compositionActions = {
     const nextStatus = server.status === "disabled" ? "ready" : "disabled";
     if (!updateServer(serverId, (item) => ({ ...item, status: nextStatus }))) return;
     pushAudit("server_status", `${server.name} ${nextStatus === "disabled" ? "disabled" : "enabled"}.`, "info");
+  },
+
+  setServerCredential(serverId: string, key: string, value: string): void {
+    const server = snapshot.serverById.get(serverId);
+    if (!server || !(key in server.env)) return;
+    const nextValue = value.trim();
+    const credentials = { ...(snapshot.credentialsByServerId.get(serverId) ?? {}) };
+    if (nextValue) credentials[key] = nextValue;
+    else delete credentials[key];
+    const credentialsByServerId = new Map(snapshot.credentialsByServerId);
+    if (Object.keys(credentials).length) credentialsByServerId.set(serverId, credentials);
+    else credentialsByServerId.delete(serverId);
+    commit({ credentialsByServerId });
+    pushAudit(
+      "server_credentials",
+      `${server.name}: ${key} ${nextValue ? "configured for this session" : "cleared"}.`,
+      nextValue ? "success" : "warning"
+    );
   },
 
   inspectServer,
@@ -589,6 +620,7 @@ export function resetCompositionStoreForTests(): void {
     generated: null,
     testingServerIds: EMPTY_OPERATIONS,
     discoveringServerIds: EMPTY_OPERATIONS,
+    credentialsByServerId: EMPTY_CREDENTIALS,
     focusServerId: null,
     isGenerating: false,
     activeStep: "profile"

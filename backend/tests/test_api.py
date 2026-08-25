@@ -83,6 +83,10 @@ def test_catalog_returns_starter_server_templates_without_embedded_tools() -> No
         assert "status" in server
         assert "tools" in server
         assert server["tools"] == []
+    github = next(server for server in catalog if server["id"] == "github-mcp")
+    assert github["transport"] == "http"
+    assert github["url"] == "https://api.githubcopilot.com/mcp/"
+    assert github["headers"] == {"Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"}
 
 
 def test_catalog_search_returns_paginated_starter_templates_without_external_network() -> None:
@@ -148,9 +152,13 @@ def test_github_catalog_metadata_returns_needs_auth_instead_of_422(
         **_stdio_fixture_server(),
         "id": "github-mcp",
         "name": "GitHub MCP",
-        "command": "npx",
-        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "transport": "http",
+        "source": "official",
+        "command": None,
+        "args": [],
+        "url": "https://api.githubcopilot.com/mcp/",
         "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"},
+        "headers": {"Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"},
         "status": "needs_auth",
         "catalogSources": ["registry"],
         "repositoryUrl": "https://github.com/modelcontextprotocol/servers",
@@ -239,6 +247,7 @@ def test_generate_gateway_returns_export_artifacts() -> None:
     assert "exposed_tools" in payload
     assert payload["exposed_tools"][0]["name"]
     assert payload["gateway_config_json"]["runtime"]["connector"] == "mcp-python-sdk"
+    assert payload["gateway_config_json"]["upstreamServers"][0]["headers"] == {}
     assert (
         payload["mcp_servers_snippet"]["mcpServers"]["code-review-gateway"]["command"] == "python"
     )

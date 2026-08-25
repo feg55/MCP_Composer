@@ -5,7 +5,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 REPOSITORY_DIR=$(cd -- "${SCRIPT_DIR}/../.." && pwd -P)
 BUNDLE_DIR=${MCP_COMPOSER_E2E_BUNDLE_DIR:-${REPOSITORY_DIR}}
 IMAGE=${MCP_COMPOSER_E2E_IMAGE:-mcp-composer}
-VERSION=${MCP_COMPOSER_E2E_VERSION:-0.1.3}
+VERSION=${MCP_COMPOSER_E2E_VERSION:-0.1.4}
 REQUESTED_OCCUPIED_PORT=${MCP_COMPOSER_E2E_OCCUPIED_PORT:-0}
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/mcp-composer-linux-e2e.XXXXXX")
 PROJECT_NAME=mcp-composer-e2e-linux-$(printf '%s' "${RANDOM}${RANDOM}" | tr -cd '0-9')
@@ -81,6 +81,54 @@ printf '%s' "${HEALTH}" | grep --fixed-strings "\"version\":\"${VERSION}\"" >/de
 curl --fail --silent --show-error "${BASE_URL}/" \
     | grep --fixed-strings '<div id="root"></div>' >/dev/null
 
+GITHUB_PAYLOAD=${TEST_DIR}/github-server.json
+printf '%s' '{
+  "id": "github-mcp",
+  "name": "GitHub MCP",
+  "description": "Official remote GitHub MCP.",
+  "transport": "http",
+  "source": "official",
+  "command": null,
+  "args": [],
+  "url": "https://api.githubcopilot.com/mcp/",
+  "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"},
+  "headers": {"Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"},
+  "status": "needs_auth",
+  "tools": []
+}' >"${GITHUB_PAYLOAD}"
+MISSING_CREDENTIAL=$(curl --fail --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary "@${GITHUB_PAYLOAD}" \
+    "${BASE_URL}/api/test-connection")
+printf '%s' "${MISSING_CREDENTIAL}" | grep --fixed-strings '"status":"needs_auth"' >/dev/null
+printf '%s' "${MISSING_CREDENTIAL}" \
+    | grep --fixed-strings 'GITHUB_PERSONAL_ACCESS_TOKEN' >/dev/null
+
+GITHUB_INVALID_PAYLOAD=${TEST_DIR}/github-server-invalid.json
+printf '%s' '{
+  "id": "github-mcp",
+  "name": "GitHub MCP",
+  "description": "Official remote GitHub MCP.",
+  "transport": "http",
+  "source": "official",
+  "command": null,
+  "args": [],
+  "url": "https://api.githubcopilot.com/mcp/",
+  "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "github_pat_intentionally_invalid_for_e2e"},
+  "headers": {"Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"},
+  "status": "needs_auth",
+  "tools": []
+}' >"${GITHUB_INVALID_PAYLOAD}"
+INVALID_CREDENTIAL=$(curl --fail --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary "@${GITHUB_INVALID_PAYLOAD}" \
+    "${BASE_URL}/api/test-connection")
+printf '%s' "${INVALID_CREDENTIAL}" | grep --fixed-strings '"status":"needs_auth"' >/dev/null
+printf '%s' "${INVALID_CREDENTIAL}" \
+    | grep --fixed-strings 'Authentication failed. Check the configured credentials.' >/dev/null
+
 mapfile -t CONTAINER_IDS < <(docker ps \
     --filter "label=com.docker.compose.project=${PROJECT_NAME}" \
     --filter 'label=com.docker.compose.service=composer' \
@@ -133,6 +181,44 @@ DISCOVERY=$(curl --fail --silent --show-error \
     "${BASE_URL}/api/discover-tools")
 printf '%s' "${DISCOVERY}" | grep --fixed-strings '"status":"ready"' >/dev/null
 printf '%s' "${DISCOVERY}" | grep --fixed-strings '"originalName":"echo"' >/dev/null
+
+FILESYSTEM_PAYLOAD=${TEST_DIR}/filesystem-server.json
+printf '%s' '{
+  "id": "filesystem-mcp",
+  "name": "Filesystem MCP",
+  "description": "Real npm catalog MCP.",
+  "transport": "stdio",
+  "source": "registry",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+  "url": null,
+  "env": {},
+  "tags": ["files"],
+  "status": "ready",
+  "tools": [],
+  "catalogSources": ["registry"],
+  "repositoryUrl": "https://github.com/modelcontextprotocol/servers",
+  "homepageUrl": null,
+  "packageId": "@modelcontextprotocol/server-filesystem",
+  "remoteUrl": null,
+  "installHint": "npx -y @modelcontextprotocol/server-filesystem /tmp",
+  "externalUrl": "https://github.com/modelcontextprotocol/servers",
+  "verified": true,
+  "popularity": 100
+}' >"${FILESYSTEM_PAYLOAD}"
+FILESYSTEM_CONNECTION=$(curl --fail --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary "@${FILESYSTEM_PAYLOAD}" \
+    "${BASE_URL}/api/test-connection")
+printf '%s' "${FILESYSTEM_CONNECTION}" | grep --fixed-strings '"status":"ready"' >/dev/null
+FILESYSTEM_DISCOVERY=$(curl --fail --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary "@${FILESYSTEM_PAYLOAD}" \
+    "${BASE_URL}/api/discover-tools")
+printf '%s' "${FILESYSTEM_DISCOVERY}" | grep --fixed-strings '"status":"ready"' >/dev/null
+printf '%s' "${FILESYSTEM_DISCOVERY}" | grep --fixed-strings '"originalName":"read_file"' >/dev/null
 
 bash "${LAUNCHER}" start
 mapfile -t REPEATED_CONTAINER_IDS < <(docker ps \

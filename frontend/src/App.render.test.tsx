@@ -32,7 +32,8 @@ const catalogServer: CatalogServerDefinition = {
   command: "demo-mcp",
   args: [],
   url: null,
-  env: {},
+  env: { DEMO_TOKEN: "${DEMO_TOKEN}" },
+  headers: { Authorization: "Bearer ${DEMO_TOKEN}" },
   tags: ["demo"],
   status: "ready",
   catalogSources: ["registry"],
@@ -498,6 +499,27 @@ describe("application render isolation", () => {
     expectRenders("Metric:servers", 1);
     expectRenders("ToastHost", 1);
     expectNoRenders(staticShellBoundaries);
+  });
+
+  it("keeps server credentials in memory and injects them only into runtime requests", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openServersStep(user);
+    await addServer(user);
+
+    await user.type(screen.getByLabelText("Credential DEMO_TOKEN"), "session-secret");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText("configured")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Test" }));
+    await waitFor(() => expect(apiMocks.testConnection).toHaveBeenCalledTimes(1));
+    const runtimeServer = apiMocks.testConnection.mock.calls[0]?.[0];
+    expect(runtimeServer.env).toEqual({ DEMO_TOKEN: "session-secret" });
+    expect(runtimeServer.headers).toEqual({ Authorization: "Bearer ${DEMO_TOKEN}" });
+    expect(localStorage.getItem("mcp-composer-state-v1") ?? "").not.toContain("session-secret");
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.queryByText("configured")).toBeNull();
   });
 
   it("updates toast activity without rendering the application tree", () => {

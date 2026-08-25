@@ -1,5 +1,5 @@
-import { PlayCircle, Power, RefreshCw, Trash2 } from "lucide-react";
-import { memo, useCallback } from "react";
+import { KeyRound, PlayCircle, Power, RefreshCw, Trash2 } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { Badge, StatusBadge } from "./Badge";
 import { Button } from "./Button";
@@ -11,6 +11,78 @@ import styles from "./ServerPool.module.scss";
 interface ServerPoolCardProps {
   serverId: string;
 }
+
+interface CredentialEditorProps {
+  serverId: string;
+  env: Record<string, string>;
+  disabled: boolean;
+}
+
+const CredentialEditor = memo(function CredentialEditor({ serverId, env, disabled }: CredentialEditorProps) {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const credentials = useCompositionSelector((current) => current.credentialsByServerId.get(serverId));
+  const requiredKeys = useMemo(
+    () =>
+      Object.entries(env)
+        .filter(([key, value]) => value === `\${${key}}`)
+        .map(([key]) => key),
+    [env]
+  );
+
+  if (!requiredKeys.length) return null;
+
+  return (
+    <div className={styles.credentials}>
+      <div className={styles.credentialsTitle}>
+        <KeyRound size="0.875rem" />
+        Session credentials
+      </div>
+      <p className={styles.credentialsHint}>Kept in memory only and cleared when this page is reloaded.</p>
+      {requiredKeys.map((key) => {
+        const configured = Boolean(credentials?.[key]);
+        const draft = drafts[key] ?? "";
+        return (
+          <div key={key} className={styles.credentialRow}>
+            <label className={styles.credentialField}>
+              <span className={styles.credentialLabel}>
+                {key} {configured && <span className={styles.configured}>configured</span>}
+              </span>
+              <input
+                className={styles.credentialInput}
+                type="password"
+                value={draft}
+                autoComplete="off"
+                spellCheck={false}
+                disabled={disabled}
+                aria-label={`Credential ${key}`}
+                onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))}
+              />
+            </label>
+            <Button
+              variant="secondary"
+              disabled={disabled || !draft.trim()}
+              onClick={() => {
+                compositionActions.setServerCredential(serverId, key, draft);
+                setDrafts((current) => ({ ...current, [key]: "" }));
+              }}
+            >
+              Save
+            </Button>
+            {configured && (
+              <Button
+                variant="ghost"
+                disabled={disabled}
+                onClick={() => compositionActions.setServerCredential(serverId, key, "")}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
 
 const ServerPoolCard = memo(function ServerPoolCard({ serverId }: ServerPoolCardProps) {
   if (import.meta.env.DEV) reportRender(`ServerPoolCard:${serverId}`);
@@ -45,6 +117,7 @@ const ServerPoolCard = memo(function ServerPoolCard({ serverId }: ServerPoolCard
             {!server.tools.length && <span className={styles.discoveryRequired}>discovery required</span>}
             <span className={styles.metaItem}>{server.source}</span>
           </div>
+          <CredentialEditor serverId={serverId} env={server.env} disabled={isTesting || isDiscovering} />
         </div>
         <div className={styles.actions}>
           <Button

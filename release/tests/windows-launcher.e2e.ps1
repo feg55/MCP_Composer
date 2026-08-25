@@ -2,7 +2,7 @@
 param(
     [string]$BundleDirectory = "",
     [string]$Image = "mcp-composer",
-    [string]$Version = "0.1.3",
+    [string]$Version = "0.1.4",
     [int]$OccupiedPort = 0
 )
 
@@ -94,6 +94,39 @@ try {
     $HomePage = Invoke-WebRequest -UseBasicParsing -Uri $BaseUrl -TimeoutSec 5
     if ($HomePage.Content -notmatch '<div id="root"></div>') {
         throw "The Windows launcher did not serve the frontend."
+    }
+
+    $GitHubServer = @{
+        id = "github-mcp"
+        name = "GitHub MCP"
+        description = "Official remote GitHub MCP."
+        transport = "http"
+        source = "official"
+        command = $null
+        args = @()
+        url = "https://api.githubcopilot.com/mcp/"
+        env = @{ GITHUB_PERSONAL_ACCESS_TOKEN = '${GITHUB_PERSONAL_ACCESS_TOKEN}' }
+        headers = @{ Authorization = 'Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}' }
+        status = "needs_auth"
+        tools = @()
+    }
+    $GitHubRequest = @{
+        Method = "Post"
+        ContentType = "application/json"
+        TimeoutSec = 30
+    }
+    $GitHubRequest.Body = $GitHubServer | ConvertTo-Json -Depth 10
+    $MissingCredential = Invoke-RestMethod @GitHubRequest -Uri "$BaseUrl/api/test-connection"
+    if ($MissingCredential.status -ne "needs_auth" -or
+        $MissingCredential.message -notmatch "GITHUB_PERSONAL_ACCESS_TOKEN") {
+        throw "The packaged backend did not report the missing GitHub credential."
+    }
+    $GitHubServer.env.GITHUB_PERSONAL_ACCESS_TOKEN = "github_pat_intentionally_invalid_for_e2e"
+    $GitHubRequest.Body = $GitHubServer | ConvertTo-Json -Depth 10
+    $InvalidCredential = Invoke-RestMethod @GitHubRequest -Uri "$BaseUrl/api/test-connection"
+    if ($InvalidCredential.status -ne "needs_auth" -or
+        $InvalidCredential.message -ne "Authentication failed. Check the configured credentials.") {
+        throw "The packaged backend did not safely report invalid GitHub credentials."
     }
 
     $ContainerIds = @(Get-ProjectContainerIds)

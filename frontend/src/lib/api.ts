@@ -62,6 +62,7 @@ function runtimeServerPayload(server: McpServerDefinition): McpServerDefinition 
     args: [...server.args],
     url: server.url,
     env: { ...server.env },
+    headers: { ...(server.headers ?? {}) },
     tags: [...server.tags],
     status: server.status,
     tools: server.tools.map((tool) => ({ ...tool, inputSchema: { ...tool.inputSchema } }))

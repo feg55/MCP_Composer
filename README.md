@@ -149,6 +149,8 @@ Published images include SBOM, BuildKit provenance, and a GitHub artifact attest
 
 Release defaults are loopback-only. Windows opens the browser after the container healthcheck. Linux defaults to headless operation and prints an SSH tunnel command. See [RELEASE.md](RELEASE.md) for installation, systemd, update, rollback, and the separate authenticated hosted profile.
 
+For GitHub MCP, enter a personal access token in the server card's `Session credentials` field, save it, and then run `Test` or `Discover tools`. The token remains only in page memory and is cleared on reload. See [RELEASE.md](RELEASE.md#github-mcp-credentials).
+
 Before publishing the first release, set the `mcp-composer` package visibility in GHCR to public so users can pull it without a registry login.
 
 ## Environment variables

@@ -46,6 +46,7 @@ export function cloneServer(server: McpServerDefinition): McpServerDefinition {
     args: [...server.args],
     url: server.url,
     env: { ...server.env },
+    headers: { ...(server.headers ?? {}) },
     tags: [...server.tags],
     status: server.status,
     tools: server.tools.map((tool) => ({
@@ -87,6 +88,7 @@ export function createManualServer(input: ManualServerInput): McpServerDefinitio
     args: input.transport === "stdio" ? parseArgsText(input.argsText) : [],
     url: input.transport === "http" ? input.url.trim() || null : null,
     env: parseEnvText(input.envText),
+    headers: parseEnvText(input.headersText),
     tags: ["manual", input.transport],
     status: "ready",
     tools: []

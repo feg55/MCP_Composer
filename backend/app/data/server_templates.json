@@ -3,14 +3,17 @@
     {
       "id": "github-mcp",
       "name": "GitHub MCP",
-      "description": "GitHub repository, issue, pull request, and file operations through the upstream MCP server.",
-      "transport": "stdio",
-      "source": "registry",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"],
-      "url": null,
+      "description": "GitHub repository, issue, pull request, and file operations through the official remote GitHub MCP server.",
+      "transport": "http",
+      "source": "official",
+      "command": null,
+      "args": [],
+      "url": "https://api.githubcopilot.com/mcp/",
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
       },
       "tags": ["code", "git", "issues", "pull-requests"],
       "status": "needs_auth",

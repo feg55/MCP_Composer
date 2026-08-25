@@ -31,7 +31,8 @@ def normalize_server_config(server: McpServerDefinition | dict) -> McpServerDefi
     model = server if isinstance(server, McpServerDefinition) else McpServerDefinition(**server)
     args = [arg.strip() for arg in model.args if arg.strip()]
     env = {key.strip(): value.strip() for key, value in model.env.items() if key.strip()}
-    normalized = model.model_copy(update={"args": args, "env": env})
+    headers = {key.strip(): value.strip() for key, value in model.headers.items() if key.strip()}
+    normalized = model.model_copy(update={"args": args, "env": env, "headers": headers})
     return normalized
 
 

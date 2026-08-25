@@ -4,19 +4,21 @@ import asyncio
 import ipaddress
 import json
 import os
+import re
 import socket
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 from urllib.parse import urlsplit
 
+import anyio
 import httpx
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 try:  # MCP SDK versions have used both module/function naming styles.
-    from mcp.client.streamable_http import streamablehttp_client
+    from mcp.client.streamable_http import streamable_http_client
 except ImportError:  # pragma: no cover - depends on installed SDK version.
-    streamablehttp_client = None  # type: ignore[assignment]
+    streamable_http_client = None  # type: ignore[assignment]
 
 try:
     from mcp.client.sse import sse_client
@@ -50,10 +52,32 @@ SAFE_PROCESS_ENV_KEYS = (
     "USERPROFILE",
     "WINDIR",
 )
+ENV_REFERENCE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 class UpstreamToolsLimitError(ValueError):
     """Raised when an upstream MCP tool catalog exceeds local safety limits."""
+
+
+def _leaf_exceptions(exc: BaseException) -> list[BaseException]:
+    if isinstance(exc, BaseExceptionGroup):
+        return [leaf for nested in exc.exceptions for leaf in _leaf_exceptions(nested)]
+    return [exc]
+
+
+def _is_auth_error(exc: BaseException) -> bool:
+    for leaf in _leaf_exceptions(exc):
+        if isinstance(leaf, httpx.HTTPStatusError) and leaf.response.status_code in {401, 403}:
+            return True
+        message = str(leaf).lower()
+        if any(marker in message for marker in ("401", "403", "unauthorized", "forbidden")):
+            return True
+    return False
+
+
+def _upstream_error_message(exc: BaseException) -> str:
+    messages = [str(leaf).strip() for leaf in _leaf_exceptions(exc) if str(leaf).strip()]
+    return messages[0] if messages else "Upstream MCP connection failed."
 
 
 def _jsonable(value: Any) -> Any:
@@ -82,6 +106,17 @@ def _resolved_env(server: McpServerDefinition) -> dict[str, str]:
     return env
 
 
+def _resolved_headers(server: McpServerDefinition) -> dict[str, str]:
+    def replace_reference(match: re.Match[str]) -> str:
+        key = match.group(1)
+        configured = server.env.get(key, f"${{{key}}}")
+        return _resolve_env_value(configured)
+
+    return {
+        key: ENV_REFERENCE.sub(replace_reference, value) for key, value in server.headers.items()
+    }
+
+
 def _resolve_env_value(value: str) -> str:
     stripped = value.strip()
     if stripped.startswith("${") and stripped.endswith("}"):
@@ -94,12 +129,17 @@ def _resolved_args(server: McpServerDefinition) -> list[str]:
 
 
 def _missing_env_keys(server: McpServerDefinition) -> list[str]:
-    missing: list[str] = []
+    missing: set[str] = set()
     for key, value in server.env.items():
         stripped = value.strip()
         if stripped.startswith("${") and stripped.endswith("}") and not os.getenv(stripped[2:-1]):
-            missing.append(key)
-    return missing
+            missing.add(key)
+    for value in server.headers.values():
+        for referenced_key in ENV_REFERENCE.findall(value):
+            configured = server.env.get(referenced_key, f"${{{referenced_key}}}")
+            if not _resolve_env_value(configured):
+                missing.add(referenced_key)
+    return sorted(missing)
 
 
 def _is_public_ip(value: str) -> bool:
@@ -124,10 +164,16 @@ def _no_redirect_http_client(
     )
 
 
-def _http_transport_kwargs(settings: Settings) -> dict[str, Any]:
-    if not settings.hosted:
-        return {}
-    return {"httpx_client_factory": _no_redirect_http_client}
+def _http_transport_kwargs(
+    settings: Settings,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {}
+    if headers:
+        kwargs["headers"] = headers
+    if settings.hosted:
+        kwargs["httpx_client_factory"] = _no_redirect_http_client
+    return kwargs
 
 
 async def _hosted_url_error(url: str, allowed_hosts: tuple[str, ...]) -> str | None:
@@ -196,7 +242,8 @@ class McpSdkConnector(McpConnector):
                 sdk_tools = _get_attr(result, "tools", default=[])
                 return self._to_tool_definitions(server, sdk_tools)
 
-        return await asyncio.wait_for(operation(), timeout=self.timeout_seconds)
+        with anyio.fail_after(self.timeout_seconds):
+            return await operation()
 
     async def test_connection(self, server: McpServerDefinition) -> TestConnectionResponse:
         connection, _ = await self.test_connection_with_tools(server)
@@ -240,7 +287,19 @@ class McpSdkConnector(McpConnector):
         except UpstreamToolsLimitError as exc:
             return TestConnectionResponse(status="error", message=str(exc)), []
         except Exception as exc:  # noqa: BLE001 - surface upstream SDK errors as API data.
-            message = "Upstream MCP connection failed." if self.settings.hosted else str(exc)
+            if _is_auth_error(exc):
+                return (
+                    TestConnectionResponse(
+                        status="needs_auth",
+                        message="Authentication failed. Check the configured credentials.",
+                    ),
+                    [],
+                )
+            message = (
+                "Upstream MCP connection failed."
+                if self.settings.hosted
+                else _upstream_error_message(exc)
+            )
             return TestConnectionResponse(status="error", message=message), []
         return (
             TestConnectionResponse(
@@ -334,7 +393,8 @@ class McpSdkConnector(McpConnector):
                 }
 
         try:
-            return await asyncio.wait_for(operation(), timeout=self.timeout_seconds)
+            with anyio.fail_after(self.timeout_seconds):
+                return await operation()
         except TimeoutError:
             raise RuntimeError(f"Connection timed out after {self.timeout_seconds}s.") from None
         except Exception as exc:
@@ -361,29 +421,28 @@ class McpSdkConnector(McpConnector):
 
         if not server.url:
             raise ValueError("http MCP server requires a URL.")
-        transport_kwargs = _http_transport_kwargs(self.settings)
-        if streamablehttp_client is not None:
-            stack = AsyncExitStack()
-            try:
-                streams = await stack.enter_async_context(
-                    streamablehttp_client(server.url, **transport_kwargs)
-                )
-                read_stream, write_stream = streams[0], streams[1]
-                session = await stack.enter_async_context(ClientSession(read_stream, write_stream))
-                await session.initialize()
-            except Exception:
-                await stack.aclose()
-                if sse_client is None:
-                    raise
-            else:
-                try:
+        headers = _resolved_headers(server)
+        if server.url.rstrip("/").endswith("/sse") and sse_client is not None:
+            transport_kwargs = _http_transport_kwargs(self.settings, headers)
+            async with sse_client(server.url, **transport_kwargs) as (read_stream, write_stream):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
                     yield session
-                finally:
-                    await stack.aclose()
-                return
+            return
+
+        if streamable_http_client is not None:
+            timeout = httpx.Timeout(self.timeout_seconds, read=300)
+            async with _no_redirect_http_client(headers=headers or None, timeout=timeout) as client:
+                async with streamable_http_client(server.url, http_client=client) as streams:
+                    read_stream, write_stream = streams[0], streams[1]
+                    async with ClientSession(read_stream, write_stream) as session:
+                        await session.initialize()
+                        yield session
+            return
 
         if sse_client is None:
             raise RuntimeError("Installed MCP SDK does not provide an HTTP client transport.")
+        transport_kwargs = _http_transport_kwargs(self.settings, headers)
         async with sse_client(server.url, **transport_kwargs) as (read_stream, write_stream):
             async with ClientSession(read_stream, write_stream) as session:
                 await session.initialize()

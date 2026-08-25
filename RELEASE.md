@@ -66,6 +66,16 @@ Then open `http://127.0.0.1:8000`. Do not change the port binding to `0.0.0.0` w
 
 An MCP HTTP server running on the Docker host can be addressed from the composer container as `host.docker.internal`. Stdio MCP commands run inside the container, not directly on the host, and are limited to commands installed in the image.
 
+## GitHub MCP credentials
+
+The bundled GitHub entry connects to GitHub's official remote MCP server. After adding it to the server pool:
+
+1. Create a GitHub personal access token with only the repository permissions needed for the intended tools.
+2. Paste it into `Session credentials` → `GITHUB_PERSONAL_ACCESS_TOKEN`.
+3. Select `Save`, then `Test` or `Discover tools`.
+
+The token is kept only in the current browser page's memory. It is not written to launcher configuration, Compose files, browser storage, or generated gateway exports, and a page reload clears it.
+
 ## Hosted profile
 
 The `hosted` directory contains a separate Caddy-protected profile for a public domain. It requires DNS pointing to the server and inbound ports 80/443.

@@ -17,6 +17,7 @@ from app.core.connectors.mcp_connector import (
     UpstreamToolsLimitError,
     _http_transport_kwargs,
     _resolved_env,
+    _resolved_headers,
 )
 from app.core.gateway import (
     InvalidCompositionError,
@@ -356,7 +357,11 @@ def test_hosted_connector_blocks_stdio_and_private_networks(tmp_path: Path) -> N
 
 
 def test_hosted_http_transport_disables_redirects(tmp_path: Path) -> None:
-    kwargs = _http_transport_kwargs(_settings(tmp_path, mode="hosted"))
+    kwargs = _http_transport_kwargs(
+        _settings(tmp_path, mode="hosted"),
+        {"Authorization": "Bearer test-token"},
+    )
+    assert kwargs["headers"] == {"Authorization": "Bearer test-token"}
     factory = kwargs["httpx_client_factory"]
     client = factory(timeout=httpx.Timeout(5))
     assert client.follow_redirects is False
@@ -408,6 +413,41 @@ def test_child_process_env_is_minimal(monkeypatch: pytest.MonkeyPatch) -> None:
     assert env["PATH"] == "safe-path"
     assert env["NPM_CONFIG_CACHE"] == "/tmp/npm-cache"
     assert "MCP_COMPOSER_INTERNAL_SECRET" not in env
+
+
+def test_http_headers_resolve_ephemeral_server_credentials() -> None:
+    server = _server(
+        transport="http",
+        command=None,
+        url="https://mcp.example/mcp",
+        env={"API_TOKEN": "secret-value"},
+        headers={"Authorization": "Bearer ${API_TOKEN}"},
+    )
+    assert _resolved_headers(server) == {"Authorization": "Bearer secret-value"}
+
+
+def test_http_auth_failure_is_reported_as_needs_auth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def reject_credentials(
+        connector: McpSdkConnector,
+        server: McpServerDefinition,
+    ) -> list[McpToolDefinition]:
+        del connector, server
+        request = httpx.Request("POST", "https://mcp.example/mcp")
+        response = httpx.Response(401, request=request)
+        auth_error = httpx.HTTPStatusError("401 Unauthorized", request=request, response=response)
+        raise ExceptionGroup("transport failed", [auth_error])
+
+    monkeypatch.setattr(McpSdkConnector, "list_tools", reject_credentials)
+    connector = McpSdkConnector(settings=_settings(tmp_path))
+    server = _server(transport="http", command=None, url="https://mcp.example/mcp")
+
+    result = asyncio.run(connector.test_connection(server))
+
+    assert result.status == "needs_auth"
+    assert result.message == "Authentication failed. Check the configured credentials."
 
 
 def test_approval_is_enforced_before_tool_execution(tmp_path: Path) -> None:

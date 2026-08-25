@@ -77,6 +77,7 @@ def generate_gateway_config(composition: McpComposition) -> dict[str, Any]:
             "args": server.args,
             "url": server.url,
             "env": server.env,
+            "headers": server.headers,
             "status": server.status,
         }
         for server in composition.servers

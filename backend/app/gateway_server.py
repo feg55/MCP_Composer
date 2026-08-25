@@ -37,6 +37,7 @@ def _server_from_config(payload: dict[str, Any]) -> McpServerDefinition:
         args=payload.get("args") or [],
         url=payload.get("url"),
         env=payload.get("env") or {},
+        headers=payload.get("headers") or {},
         tags=payload.get("tags") or [],
         status=payload.get("status") or "ready",
         tools=[],

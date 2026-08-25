@@ -51,6 +51,7 @@ class McpServerDefinition(CamelModel):
     args: list[ShortText] = Field(default_factory=list, max_length=100)
     url: UrlText | None = None
     env: dict[EnvKey, EnvValue] = Field(default_factory=dict, max_length=100)
+    headers: dict[EnvKey, EnvValue] = Field(default_factory=dict, max_length=100)
     tags: list[ShortText] = Field(default_factory=list, max_length=100)
     status: ServerStatus = "ready"
     tools: list[McpToolDefinition] = Field(default_factory=list, max_length=1_000)

@@ -27,6 +27,7 @@ export interface McpServerDefinition {
   args: string[];
   url: string | null;
   env: Record<string, string>;
+  headers?: Record<string, string>;
   tags: string[];
   status: ServerStatus;
   tools: McpToolDefinition[];
@@ -123,4 +124,5 @@ export interface ManualServerInput {
   argsText: string;
   url: string;
   envText: string;
+  headersText: string;
 }

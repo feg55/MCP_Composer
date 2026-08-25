@@ -15,7 +15,8 @@ const defaultInput: ManualServerInput = {
   command: "",
   argsText: "",
   url: "",
-  envText: ""
+  envText: "",
+  headersText: ""
 };
 
 export const ManualServerForm = memo(function ManualServerForm() {
@@ -107,6 +108,17 @@ export const ManualServerForm = memo(function ManualServerForm() {
             placeholder="API_TOKEN=${API_TOKEN}"
           />
         </label>
+        {input.transport === "http" && (
+          <label className={styles.fullWidthField}>
+            <span className={styles.label}>HTTP headers, KEY=value</span>
+            <textarea
+              className={styles.textarea}
+              value={input.headersText}
+              onChange={(event) => update("headersText", event.target.value)}
+              placeholder="Authorization=Bearer ${API_TOKEN}"
+            />
+          </label>
+        )}
       </div>
       <div className={styles.actions}>
         <Button variant="primary" onClick={submit} disabled={!canSubmit} leftIcon={<PlusCircle size="1rem" />}>
