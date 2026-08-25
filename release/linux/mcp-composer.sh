@@ -135,6 +135,14 @@ running_project_port() {
         | head -n 1
 }
 
+running_project_image() {
+    docker ps \
+        --filter "label=com.docker.compose.project=${PROJECT_NAME}" \
+        --filter 'label=com.docker.compose.service=composer' \
+        --format '{{.Image}}' 2>/dev/null \
+        | head -n 1
+}
+
 service_is_healthy() {
     curl --fail --silent --max-time 2 "$1/api/health" 2>/dev/null \
         | grep --fixed-strings '"service":"mcp-composer-api"' >/dev/null
@@ -235,7 +243,7 @@ fi
 if [[ -n ${REQUESTED_VERSION} ]]; then
     assert_version "${REQUESTED_VERSION}"
     set_config_value MCP_COMPOSER_VERSION "${REQUESTED_VERSION}"
-elif [[ ${ACTION} == update ]]; then
+elif [[ ${ACTION} == start || ${ACTION} == update ]]; then
     RELEASE_VERSION=$(bundle_version)
     assert_version "${RELEASE_VERSION}"
     set_config_value MCP_COMPOSER_VERSION "${RELEASE_VERSION}"
@@ -245,34 +253,36 @@ sync_compose_environment
 BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
 
 if [[ ${ACTION} == start ]]; then
+    PROJECT_RUNNING=0
+    project_is_running && PROJECT_RUNNING=1
     RUNNING_PROJECT_PORT=$(running_project_port)
-    if [[ -n ${RUNNING_PROJECT_PORT} ]] \
-        && service_is_healthy "http://127.0.0.1:${RUNNING_PROJECT_PORT}"; then
+    RUNNING_PROJECT_IMAGE=$(running_project_image)
+    EXPECTED_IMAGE=${MCP_COMPOSER_IMAGE}:${MCP_COMPOSER_VERSION}
+    if ((PROJECT_RUNNING == 1)) && [[ -n ${RUNNING_PROJECT_PORT} ]]; then
         if [[ ${RUNNING_PROJECT_PORT} != "${MCP_COMPOSER_PORT}" ]]; then
             MCP_COMPOSER_PORT=${RUNNING_PROJECT_PORT}
             set_config_value MCP_COMPOSER_PORT "${MCP_COMPOSER_PORT}"
             export MCP_COMPOSER_PORT
         fi
         BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
-        printf 'MCP Composer is already running at %s\n' "${BASE_URL}"
-        open_browser "${BASE_URL}"
-        exit 0
+        if [[ ${RUNNING_PROJECT_IMAGE} == "${EXPECTED_IMAGE}" ]] && service_is_healthy "${BASE_URL}"; then
+            printf 'MCP Composer is already running at %s\n' "${BASE_URL}"
+            open_browser "${BASE_URL}"
+            exit 0
+        fi
     fi
 fi
 
 if [[ ${ACTION} == start ]] && port_in_use "${MCP_COMPOSER_PORT}"; then
-    if project_is_running && service_is_healthy "${BASE_URL}"; then
-        printf 'MCP Composer is already running at %s\n' "${BASE_URL}"
-        open_browser "${BASE_URL}"
-        exit 0
+    if ((PROJECT_RUNNING != 1)); then
+        [[ -z ${REQUESTED_PORT} ]] || die "Port ${REQUESTED_PORT} is already in use. Choose another port with --port."
+        PREVIOUS_PORT=${MCP_COMPOSER_PORT}
+        MCP_COMPOSER_PORT=$(find_available_port)
+        set_config_value MCP_COMPOSER_PORT "${MCP_COMPOSER_PORT}"
+        export MCP_COMPOSER_PORT
+        BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
+        printf 'Port %s is already in use; using %s instead.\n' "${PREVIOUS_PORT}" "${MCP_COMPOSER_PORT}"
     fi
-    [[ -z ${REQUESTED_PORT} ]] || die "Port ${REQUESTED_PORT} is already in use. Choose another port with --port."
-    PREVIOUS_PORT=${MCP_COMPOSER_PORT}
-    MCP_COMPOSER_PORT=$(find_available_port)
-    set_config_value MCP_COMPOSER_PORT "${MCP_COMPOSER_PORT}"
-    export MCP_COMPOSER_PORT
-    BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
-    printf 'Port %s is already in use; using %s instead.\n' "${PREVIOUS_PORT}" "${MCP_COMPOSER_PORT}"
 fi
 
 case ${ACTION} in

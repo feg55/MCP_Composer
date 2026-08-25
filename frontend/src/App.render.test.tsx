@@ -35,7 +35,15 @@ const catalogServer: CatalogServerDefinition = {
   env: {},
   tags: ["demo"],
   status: "ready",
+  catalogSources: ["registry"],
+  repositoryUrl: "https://github.com/example/demo-mcp",
+  homepageUrl: "https://example.com/demo-mcp",
+  packageId: "@example/demo-mcp",
+  remoteUrl: null,
+  installHint: "npx -y @example/demo-mcp",
+  externalUrl: "https://example.com/demo-mcp",
   verified: true,
+  popularity: 100,
   tools: [
     {
       id: "tool-1",
@@ -460,6 +468,18 @@ describe("application render isolation", () => {
     resetRenderCounts();
     await user.click(screen.getByRole("button", { name: "Test" }));
     await waitFor(() => expect(apiMocks.testConnection).toHaveBeenCalledTimes(1));
+    const testedServer = apiMocks.testConnection.mock.calls[0]?.[0] as Record<string, unknown>;
+    [
+      "catalogSources",
+      "repositoryUrl",
+      "homepageUrl",
+      "packageId",
+      "remoteUrl",
+      "installHint",
+      "externalUrl",
+      "verified",
+      "popularity"
+    ].forEach((key) => expect(testedServer).not.toHaveProperty(key));
     await waitFor(() =>
       expect((screen.getByRole("button", { name: "Test" }) as HTMLButtonElement).disabled).toBe(false)
     );

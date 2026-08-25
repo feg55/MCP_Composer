@@ -37,9 +37,20 @@ export function defaultPermissionForRisk(riskLevel: RiskLevel): PermissionMode {
 
 export function cloneServer(server: McpServerDefinition): McpServerDefinition {
   return {
-    ...server,
+    id: server.id,
+    name: server.name,
+    description: server.description,
+    transport: server.transport,
+    source: server.source,
+    command: server.command,
+    args: [...server.args],
+    url: server.url,
+    env: { ...server.env },
+    tags: [...server.tags],
+    status: server.status,
     tools: server.tools.map((tool) => ({
       ...tool,
+      inputSchema: { ...tool.inputSchema },
       enabled: false,
       permission: tool.permission || defaultPermissionForRisk(tool.riskLevel)
     }))

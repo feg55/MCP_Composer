@@ -9,8 +9,8 @@ from fastapi import APIRouter, HTTPException, Request
 from app.core.composition import normalize_server_config, validate_composition
 from app.core.connectors.mcp_connector import McpSdkConnector
 from app.core.types import (
+    CatalogServerDefinition,
     McpComposition,
-    McpServerDefinition,
     TestConnectionResponse,
     ToolDiscoveryResponse,
     ValidationResult,
@@ -44,7 +44,7 @@ async def validate(composition: McpComposition) -> ValidationResult:
 
 @router.post("/test-connection", response_model=TestConnectionResponse)
 async def test_connection(
-    server: McpServerDefinition,
+    server: CatalogServerDefinition,
     request: Request,
 ) -> TestConnectionResponse:
     connector = McpSdkConnector(settings=request.app.state.settings)
@@ -55,7 +55,7 @@ async def test_connection(
 
 @router.post("/discover-tools", response_model=ToolDiscoveryResponse)
 async def discover_tools(
-    server: McpServerDefinition,
+    server: CatalogServerDefinition,
     request: Request,
 ) -> ToolDiscoveryResponse:
     connector = McpSdkConnector(settings=request.app.state.settings)

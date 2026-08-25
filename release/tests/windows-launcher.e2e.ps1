@@ -2,7 +2,7 @@
 param(
     [string]$BundleDirectory = "",
     [string]$Image = "mcp-composer",
-    [string]$Version = "0.1.2",
+    [string]$Version = "0.1.3",
     [int]$OccupiedPort = 0
 )
 
@@ -39,43 +39,43 @@ function Get-ProjectContainerIds {
     return $Ids
 }
 
-New-Item -ItemType Directory -Force -Path $ConfigDirectory | Out-Null
-$ImageReference = "${Image}:${Version}"
-$PublishSpec = if ($OccupiedPort -eq 0) {
-    "127.0.0.1::8000"
-} else {
-    "127.0.0.1:${OccupiedPort}:8000"
-}
-$BlockerArguments = @(
-    "run",
-    "--detach",
-    "--rm",
-    "--name", $BlockerName,
-    "--pull", "never",
-    "--publish", $PublishSpec,
-    $ImageReference,
-    "python", "-m", "http.server", "8000"
-)
-$BlockerId = (& docker @BlockerArguments).Trim()
-if ($LASTEXITCODE -ne 0 -or -not $BlockerId) {
-    throw "Could not start the occupied-port Docker fixture."
-}
-$PublishedPort = (& docker port $BlockerName "8000/tcp").Trim()
-if ($LASTEXITCODE -ne 0 -or $PublishedPort -notmatch '127\.0\.0\.1:(\d+)$') {
-    throw "Could not determine the occupied Docker port."
-}
-$OccupiedPort = [int]$Matches[1]
-$Encoding = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllLines($ConfigFile, @(
-    "MCP_COMPOSER_VERSION=$Version",
-    "MCP_COMPOSER_IMAGE=$Image",
-    "MCP_COMPOSER_PORT=$OccupiedPort"
-), $Encoding)
-
-$env:MCP_COMPOSER_LAUNCHER_CONFIG_DIR = $ConfigDirectory
-$env:MCP_COMPOSER_LAUNCHER_PROJECT_NAME = $ProjectName
-
 try {
+    New-Item -ItemType Directory -Force -Path $ConfigDirectory | Out-Null
+    $ImageReference = "${Image}:${Version}"
+    $PublishSpec = if ($OccupiedPort -eq 0) {
+        "127.0.0.1::8000"
+    } else {
+        "127.0.0.1:${OccupiedPort}:8000"
+    }
+    $BlockerArguments = @(
+        "run",
+        "--detach",
+        "--rm",
+        "--name", $BlockerName,
+        "--pull", "never",
+        "--publish", $PublishSpec,
+        $ImageReference,
+        "python", "-m", "http.server", "8000"
+    )
+    $BlockerId = (& docker @BlockerArguments).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $BlockerId) {
+        throw "Could not start the occupied-port Docker fixture."
+    }
+    $PublishedPort = (& docker port $BlockerName "8000/tcp").Trim()
+    if ($LASTEXITCODE -ne 0 -or $PublishedPort -notmatch '127\.0\.0\.1:(\d+)$') {
+        throw "Could not determine the occupied Docker port."
+    }
+    $OccupiedPort = [int]$Matches[1]
+    $Encoding = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllLines($ConfigFile, @(
+        "MCP_COMPOSER_VERSION=$Version",
+        "MCP_COMPOSER_IMAGE=$Image",
+        "MCP_COMPOSER_PORT=$OccupiedPort"
+    ), $Encoding)
+
+    $env:MCP_COMPOSER_LAUNCHER_CONFIG_DIR = $ConfigDirectory
+    $env:MCP_COMPOSER_LAUNCHER_PROJECT_NAME = $ProjectName
+
     & $Launcher -Action Start -NoBrowser
 
     $SelectedPortLine = Get-Content -LiteralPath $ConfigFile |
@@ -106,6 +106,89 @@ try {
     }
     if ((& docker inspect --format "{{.HostConfig.ReadonlyRootfs}}" $ContainerId).Trim() -ne "true") {
         throw "The Windows E2E container does not have a read-only root filesystem."
+    }
+    & docker exec $ContainerId npx --version | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "The Windows E2E image cannot launch npx-based catalog MCP servers."
+    }
+
+    $FixtureServer = Join-Path $RepositoryDirectory "backend/tests/fixtures/simple_mcp_server.py"
+    Get-Content -Raw -LiteralPath $FixtureServer |
+        & docker exec --interactive $ContainerId sh -c "cat > /tmp/simple_mcp_server.py"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not write the real MCP fixture into the Windows E2E container tmpfs."
+    }
+    $CatalogPayload = @{
+        id = "fixture-catalog-mcp"
+        name = "Fixture Catalog MCP"
+        description = "Real stdio MCP fixture with catalog metadata."
+        transport = "stdio"
+        source = "registry"
+        command = "python"
+        args = @("/tmp/simple_mcp_server.py")
+        url = $null
+        env = @{}
+        tags = @("test")
+        status = "ready"
+        tools = @()
+        catalogSources = @("registry")
+        repositoryUrl = "https://github.com/example/fixture-mcp"
+        homepageUrl = $null
+        packageId = "@example/fixture-mcp"
+        remoteUrl = $null
+        installHint = "python /tmp/simple_mcp_server.py"
+        externalUrl = "https://github.com/example/fixture-mcp"
+        verified = $true
+        popularity = 100
+    } | ConvertTo-Json -Depth 10
+    $RequestParameters = @{
+        Method = "Post"
+        ContentType = "application/json"
+        Body = $CatalogPayload
+        TimeoutSec = 30
+    }
+    $Connection = Invoke-RestMethod @RequestParameters -Uri "$BaseUrl/api/test-connection"
+    if ($Connection.status -ne "ready") {
+        throw "The packaged backend could not test a catalog MCP server: $($Connection.message)"
+    }
+    $Discovery = Invoke-RestMethod @RequestParameters -Uri "$BaseUrl/api/discover-tools"
+    if ($Discovery.status -ne "ready" -or $Discovery.tools.Count -lt 1) {
+        throw "The packaged backend could not discover tools from a catalog MCP server."
+    }
+
+    $FilesystemPayload = @{
+        id = "filesystem-mcp"
+        name = "Filesystem MCP"
+        description = "Real npm catalog MCP."
+        transport = "stdio"
+        source = "registry"
+        command = "npx"
+        args = @("-y", "@modelcontextprotocol/server-filesystem", "/tmp")
+        url = $null
+        env = @{}
+        tags = @("files")
+        status = "ready"
+        tools = @()
+        catalogSources = @("registry")
+        repositoryUrl = "https://github.com/modelcontextprotocol/servers"
+        homepageUrl = $null
+        packageId = "@modelcontextprotocol/server-filesystem"
+        remoteUrl = $null
+        installHint = "npx -y @modelcontextprotocol/server-filesystem /tmp"
+        externalUrl = "https://github.com/modelcontextprotocol/servers"
+        verified = $true
+        popularity = 100
+    } | ConvertTo-Json -Depth 10
+    $RequestParameters.Body = $FilesystemPayload
+    $RequestParameters.TimeoutSec = 45
+    $FilesystemConnection = Invoke-RestMethod @RequestParameters -Uri "$BaseUrl/api/test-connection"
+    if ($FilesystemConnection.status -ne "ready") {
+        throw "The packaged backend could not launch Filesystem MCP through npx: $($FilesystemConnection.message)"
+    }
+    $FilesystemDiscovery = Invoke-RestMethod @RequestParameters -Uri "$BaseUrl/api/discover-tools"
+    if ($FilesystemDiscovery.status -ne "ready" -or
+        "read_file" -notin @($FilesystemDiscovery.tools.originalName)) {
+        throw "The packaged backend could not discover the real Filesystem MCP tools."
     }
 
     & $Launcher -Action Start -NoBrowser

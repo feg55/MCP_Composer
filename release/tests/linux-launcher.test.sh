@@ -17,6 +17,13 @@ trap cleanup EXIT
 
 docker() {
     printf '%s\n' "$*" >>"${MCP_COMPOSER_TEST_DOCKER_LOG}"
+    if [[ ${MCP_COMPOSER_MOCK_RUNNING_PROJECT:-0} == 1 && ${1:-} == ps ]]; then
+        case $* in
+            *'--format {{.ID}}'*) printf '%s\n' old-container-id ;;
+            *'--format {{.Ports}}'*) printf '%s\n' '127.0.0.1:18080->8000/tcp' ;;
+            *'--format {{.Image}}'*) printf '%s\n' 'ghcr.io/feg55/mcp-composer:0.1.0' ;;
+        esac
+    fi
     return 0
 }
 
@@ -30,6 +37,13 @@ LAUNCHER=${REPOSITORY_DIR}/release/linux/mcp-composer.sh
 bash "${LAUNCHER}" start --port 18080 --version 0.1.0
 grep --fixed-strings 'MCP_COMPOSER_PORT=18080' "${XDG_CONFIG_HOME}/mcp-composer/composer.env"
 grep --fixed-strings 'up --detach --pull missing --wait --wait-timeout 120' "${MCP_COMPOSER_TEST_DOCKER_LOG}"
+
+export MCP_COMPOSER_MOCK_RUNNING_PROJECT=1
+: >"${MCP_COMPOSER_TEST_DOCKER_LOG}"
+bash "${LAUNCHER}" start
+grep --fixed-strings 'MCP_COMPOSER_VERSION=0.1.3' "${XDG_CONFIG_HOME}/mcp-composer/composer.env"
+grep --fixed-strings 'up --detach --pull missing --wait --wait-timeout 120' "${MCP_COMPOSER_TEST_DOCKER_LOG}"
+export MCP_COMPOSER_MOCK_RUNNING_PROJECT=0
 
 bash "${LAUNCHER}" update --version 0.1.0
 grep --fixed-strings 'pull composer' "${MCP_COMPOSER_TEST_DOCKER_LOG}"

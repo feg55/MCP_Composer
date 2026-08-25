@@ -51,6 +51,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function runtimeServerPayload(server: McpServerDefinition): McpServerDefinition {
+  return {
+    id: server.id,
+    name: server.name,
+    description: server.description,
+    transport: server.transport,
+    source: server.source,
+    command: server.command,
+    args: [...server.args],
+    url: server.url,
+    env: { ...server.env },
+    tags: [...server.tags],
+    status: server.status,
+    tools: server.tools.map((tool) => ({ ...tool, inputSchema: { ...tool.inputSchema } }))
+  };
+}
+
 export const api = {
   health: () => request<{ status: string; service: string; mode: string; version: string }>("/api/health"),
   catalog: () => request<McpServerDefinition[]>("/api/catalog"),
@@ -75,12 +92,12 @@ export const api = {
   testConnection: (server: McpServerDefinition) =>
     request<TestConnectionResponse>("/api/test-connection", {
       method: "POST",
-      body: JSON.stringify(server)
+      body: JSON.stringify(runtimeServerPayload(server))
     }),
   discoverTools: (server: McpServerDefinition) =>
     request<ToolDiscoveryResponse>("/api/discover-tools", {
       method: "POST",
-      body: JSON.stringify(server)
+      body: JSON.stringify(runtimeServerPayload(server))
     })
 };
 

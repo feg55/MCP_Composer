@@ -5,7 +5,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 REPOSITORY_DIR=$(cd -- "${SCRIPT_DIR}/../.." && pwd -P)
 BUNDLE_DIR=${MCP_COMPOSER_E2E_BUNDLE_DIR:-${REPOSITORY_DIR}}
 IMAGE=${MCP_COMPOSER_E2E_IMAGE:-mcp-composer}
-VERSION=${MCP_COMPOSER_E2E_VERSION:-0.1.2}
+VERSION=${MCP_COMPOSER_E2E_VERSION:-0.1.3}
 REQUESTED_OCCUPIED_PORT=${MCP_COMPOSER_E2E_OCCUPIED_PORT:-0}
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/mcp-composer-linux-e2e.XXXXXX")
 PROJECT_NAME=mcp-composer-e2e-linux-$(printf '%s' "${RANDOM}${RANDOM}" | tr -cd '0-9')
@@ -92,6 +92,47 @@ mapfile -t CONTAINER_IDS < <(docker ps \
 CONTAINER_ID=${CONTAINER_IDS[0]}
 [[ $(docker inspect --format '{{.Config.User}}' "${CONTAINER_ID}") == composer ]]
 [[ $(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "${CONTAINER_ID}") == true ]]
+docker exec "${CONTAINER_ID}" npx --version >/dev/null
+
+docker exec --interactive "${CONTAINER_ID}" sh -c 'cat > /tmp/simple_mcp_server.py' \
+    <"${REPOSITORY_DIR}/backend/tests/fixtures/simple_mcp_server.py"
+CATALOG_PAYLOAD=${TEST_DIR}/catalog-server.json
+printf '%s' '{
+  "id": "fixture-catalog-mcp",
+  "name": "Fixture Catalog MCP",
+  "description": "Real stdio MCP fixture with catalog metadata.",
+  "transport": "stdio",
+  "source": "registry",
+  "command": "python",
+  "args": ["/tmp/simple_mcp_server.py"],
+  "url": null,
+  "env": {},
+  "tags": ["test"],
+  "status": "ready",
+  "tools": [],
+  "catalogSources": ["registry"],
+  "repositoryUrl": "https://github.com/example/fixture-mcp",
+  "homepageUrl": null,
+  "packageId": "@example/fixture-mcp",
+  "remoteUrl": null,
+  "installHint": "python /tmp/simple_mcp_server.py",
+  "externalUrl": "https://github.com/example/fixture-mcp",
+  "verified": true,
+  "popularity": 100
+}' >"${CATALOG_PAYLOAD}"
+CONNECTION=$(curl --fail --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary "@${CATALOG_PAYLOAD}" \
+    "${BASE_URL}/api/test-connection")
+printf '%s' "${CONNECTION}" | grep --fixed-strings '"status":"ready"' >/dev/null
+DISCOVERY=$(curl --fail --silent --show-error \
+    --request POST \
+    --header 'Content-Type: application/json' \
+    --data-binary "@${CATALOG_PAYLOAD}" \
+    "${BASE_URL}/api/discover-tools")
+printf '%s' "${DISCOVERY}" | grep --fixed-strings '"status":"ready"' >/dev/null
+printf '%s' "${DISCOVERY}" | grep --fixed-strings '"originalName":"echo"' >/dev/null
 
 bash "${LAUNCHER}" start
 mapfile -t REPEATED_CONTAINER_IDS < <(docker ps \

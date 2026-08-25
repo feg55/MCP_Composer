@@ -4,6 +4,7 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
+import pytest
 from app.main import app
 from fastapi.testclient import TestClient
 
@@ -113,6 +114,61 @@ def test_discover_tools_uses_real_stdio_mcp_server() -> None:
         assert "exposedName" in tool
         assert "inputSchema" in tool
         assert "riskLevel" in tool
+
+
+def test_upstream_routes_accept_known_catalog_metadata() -> None:
+    server = {
+        **_stdio_fixture_server(),
+        "catalogSources": ["registry"],
+        "repositoryUrl": "https://github.com/example/fixture-mcp",
+        "homepageUrl": "https://example.com/fixture-mcp",
+        "packageId": "@example/fixture-mcp",
+        "remoteUrl": None,
+        "installHint": "npx -y @example/fixture-mcp",
+        "externalUrl": "https://example.com/fixture-mcp",
+        "verified": True,
+        "popularity": 100,
+    }
+
+    connection_response = client.post("/api/test-connection", json=server)
+    assert connection_response.status_code == 200
+    assert connection_response.json()["status"] == "ready"
+
+    discovery_response = client.post("/api/discover-tools", json=server)
+    assert discovery_response.status_code == 200
+    assert discovery_response.json()["status"] == "ready"
+    assert discovery_response.json()["tools"]
+
+
+def test_github_catalog_metadata_returns_needs_auth_instead_of_422(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_PERSONAL_ACCESS_TOKEN", raising=False)
+    server = {
+        **_stdio_fixture_server(),
+        "id": "github-mcp",
+        "name": "GitHub MCP",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"},
+        "status": "needs_auth",
+        "catalogSources": ["registry"],
+        "repositoryUrl": "https://github.com/modelcontextprotocol/servers",
+        "homepageUrl": None,
+        "packageId": "@modelcontextprotocol/server-github",
+        "remoteUrl": None,
+        "installHint": "npx -y @modelcontextprotocol/server-github",
+        "externalUrl": "https://github.com/modelcontextprotocol/servers",
+        "verified": True,
+        "popularity": 100,
+    }
+
+    for route in ("test-connection", "discover-tools"):
+        response = client.post(f"/api/{route}", json=server)
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "needs_auth"
+        assert "GITHUB_PERSONAL_ACCESS_TOKEN" in payload["message"]
 
 
 def test_validate_composition_valid_and_missing_description_warning() -> None:

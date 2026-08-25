@@ -90,6 +90,7 @@ jobs:
           test "$(docker inspect --format '{{.Config.User}}' "${container_id}")" = "composer"
           test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "${container_id}")" = "true"
           test "$(docker inspect --format '{{.HostConfig.Init}}' "${container_id}")" = "true"
+          docker exec "${container_id}" npx --version >/dev/null
           test "$(docker inspect --format '{{.HostConfig.LogConfig.Type}}' "${container_id}")" = "json-file"
           test "$(docker inspect --format '{{index .HostConfig.LogConfig.Config "max-size"}}' "${container_id}")" = "10m"
           test "$(docker inspect --format '{{index .HostConfig.LogConfig.Config "max-file"}}' "${container_id}")" = "3"

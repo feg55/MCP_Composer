@@ -402,9 +402,11 @@ def test_malformed_catalog_cursor_is_ignored(tmp_path: Path) -> None:
 
 def test_child_process_env_is_minimal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MCP_COMPOSER_INTERNAL_SECRET", "do-not-forward")
+    monkeypatch.setenv("NPM_CONFIG_CACHE", "/tmp/npm-cache")
     monkeypatch.setenv("PATH", "safe-path")
     env = _resolved_env(_server())
     assert env["PATH"] == "safe-path"
+    assert env["NPM_CONFIG_CACHE"] == "/tmp/npm-cache"
     assert "MCP_COMPOSER_INTERNAL_SECRET" not in env
 
 
