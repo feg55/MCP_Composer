@@ -19,7 +19,7 @@ CONFIG_FILE=${CONFIG_DIR}/composer.env
 INSTALL_DIR=${DATA_BASE_DIR}/mcp-composer/runtime
 COMPOSE_FILE=${BUNDLE_DIR}/compose.release.yaml
 VERSION_FILE=${BUNDLE_DIR}/VERSION
-PROJECT_NAME=mcp-composer
+PROJECT_NAME=${MCP_COMPOSER_LAUNCHER_PROJECT_NAME:-mcp-composer}
 OPEN_BROWSER=0
 PURGE_CONFIG=0
 REQUESTED_PORT=
@@ -45,6 +45,21 @@ assert_version() {
 assert_port() {
     [[ $1 =~ ^[0-9]+$ ]] || die "Port must be numeric."
     ((10#$1 >= 1 && 10#$1 <= 65535)) || die "Port must be between 1 and 65535."
+}
+
+port_in_use() {
+    (exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1
+}
+
+find_available_port() {
+    local candidate
+    for ((candidate = 8000; candidate <= 8999; candidate++)); do
+        if ! port_in_use "${candidate}"; then
+            printf '%s' "${candidate}"
+            return
+        fi
+    done
+    die "No free loopback port was found in the 8000-8999 range."
 }
 
 initialize_config() {
@@ -101,6 +116,28 @@ compose() {
         --env-file "${CONFIG_FILE}" \
         -f "${COMPOSE_FILE}" \
         "$@"
+}
+
+project_is_running() {
+    docker ps \
+        --filter "label=com.docker.compose.project=${PROJECT_NAME}" \
+        --filter 'label=com.docker.compose.service=composer' \
+        --format '{{.ID}}' 2>/dev/null \
+        | grep --quiet .
+}
+
+running_project_port() {
+    docker ps \
+        --filter "label=com.docker.compose.project=${PROJECT_NAME}" \
+        --filter 'label=com.docker.compose.service=composer' \
+        --format '{{.Ports}}' 2>/dev/null \
+        | sed -n 's/.*127\.0\.0\.1:\([0-9][0-9]*\)->8000\/tcp.*/\1/p' \
+        | head -n 1
+}
+
+service_is_healthy() {
+    curl --fail --silent --max-time 2 "$1/api/health" 2>/dev/null \
+        | grep --fixed-strings '"service":"mcp-composer-api"' >/dev/null
 }
 
 wait_for_health() {
@@ -207,9 +244,40 @@ fi
 sync_compose_environment
 BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
 
+if [[ ${ACTION} == start ]]; then
+    RUNNING_PROJECT_PORT=$(running_project_port)
+    if [[ -n ${RUNNING_PROJECT_PORT} ]] \
+        && service_is_healthy "http://127.0.0.1:${RUNNING_PROJECT_PORT}"; then
+        if [[ ${RUNNING_PROJECT_PORT} != "${MCP_COMPOSER_PORT}" ]]; then
+            MCP_COMPOSER_PORT=${RUNNING_PROJECT_PORT}
+            set_config_value MCP_COMPOSER_PORT "${MCP_COMPOSER_PORT}"
+            export MCP_COMPOSER_PORT
+        fi
+        BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
+        printf 'MCP Composer is already running at %s\n' "${BASE_URL}"
+        open_browser "${BASE_URL}"
+        exit 0
+    fi
+fi
+
+if [[ ${ACTION} == start ]] && port_in_use "${MCP_COMPOSER_PORT}"; then
+    if project_is_running && service_is_healthy "${BASE_URL}"; then
+        printf 'MCP Composer is already running at %s\n' "${BASE_URL}"
+        open_browser "${BASE_URL}"
+        exit 0
+    fi
+    [[ -z ${REQUESTED_PORT} ]] || die "Port ${REQUESTED_PORT} is already in use. Choose another port with --port."
+    PREVIOUS_PORT=${MCP_COMPOSER_PORT}
+    MCP_COMPOSER_PORT=$(find_available_port)
+    set_config_value MCP_COMPOSER_PORT "${MCP_COMPOSER_PORT}"
+    export MCP_COMPOSER_PORT
+    BASE_URL=http://127.0.0.1:${MCP_COMPOSER_PORT}
+    printf 'Port %s is already in use; using %s instead.\n' "${PREVIOUS_PORT}" "${MCP_COMPOSER_PORT}"
+fi
+
 case ${ACTION} in
     start)
-        if ! compose up --detach --pull always --wait --wait-timeout 120; then
+        if ! compose up --detach --pull missing --wait --wait-timeout 120; then
             compose logs --tail 80 composer || true
             die "Container startup failed. Check Docker access, registry access, and whether port ${MCP_COMPOSER_PORT} is already in use."
         fi

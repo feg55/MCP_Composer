@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash -n release/package.sh release/linux/*.sh release/tests/linux-launcher.test.sh
+          bash -n release/package.sh release/linux/*.sh release/tests/*.sh
           bash release/tests/linux-launcher.test.sh
           MCP_COMPOSER_VERSION="${GITHUB_REF_NAME#v}" \
             docker compose -f compose.release.yaml config --quiet
@@ -70,7 +70,7 @@ jobs:
           MCP_COMPOSER_PASSWORD_HASH='$2a$14$releasevalidationhash' \
             docker compose -f compose.hosted.yaml config --quiet
           pwsh -NoLogo -NoProfile -Command \
-            '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile("release/windows/start.ps1", [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }'
+            '$files=@("release/windows/start.ps1", "release/tests/windows-launcher.test.ps1", "release/tests/windows-launcher.e2e.ps1"); foreach ($file in $files) { $tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count) { $errors | ForEach-Object { Write-Error $_ }; exit 1 } }'
           pwsh -NoLogo -NoProfile -File release/tests/windows-launcher.test.ps1
 
   publish-image:
@@ -149,40 +149,40 @@ jobs:
             --build-arg "MCP_COMPOSER_VERSION=${version}" \
             --tag "mcp-composer:${version}" \
             .
-      - name: Smoke test release Compose profile
+      - name: Build and extract release bundles
         shell: bash
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          project="mcp-composer-release-smoke"
-          export MCP_COMPOSER_IMAGE=mcp-composer
-          export MCP_COMPOSER_VERSION="${version}"
-          export MCP_COMPOSER_PORT=18001
-          cleanup() {
-            docker compose \
-              --project-name "${project}" \
-              -f compose.release.yaml \
-              down --remove-orphans >/dev/null 2>&1 || true
-          }
-          trap cleanup EXIT
+          output="${RUNNER_TEMP}/mcp-composer-e2e-bundles"
+          windows_extract="${RUNNER_TEMP}/mcp-composer-e2e-windows"
+          linux_extract="${RUNNER_TEMP}/mcp-composer-e2e-linux"
+          mkdir -p "${windows_extract}" "${linux_extract}"
+          bash release/package.sh "${version}" "${output}"
+          unzip -q "${output}/mcp-composer-${version}-windows.zip" -d "${windows_extract}"
+          tar -xzf "${output}/mcp-composer-${version}-linux.tar.gz" -C "${linux_extract}"
+          {
+            printf 'MCP_COMPOSER_E2E_VERSION=%s\n' "${version}"
+            printf 'MCP_COMPOSER_E2E_WINDOWS_BUNDLE=%s/mcp-composer-%s-windows\n' "${windows_extract}" "${version}"
+            printf 'MCP_COMPOSER_E2E_LINUX_BUNDLE=%s/mcp-composer-%s-linux\n' "${linux_extract}" "${version}"
+          } >> "${GITHUB_ENV}"
 
-          docker compose \
-            --project-name "${project}" \
-            -f compose.release.yaml \
-            up --detach --wait --wait-timeout 60
+      - name: Run real Windows launcher E2E
+        shell: pwsh
+        run: |
+          ./release/tests/windows-launcher.e2e.ps1 `
+            -BundleDirectory $env:MCP_COMPOSER_E2E_WINDOWS_BUNDLE `
+            -Image mcp-composer `
+            -Version $env:MCP_COMPOSER_E2E_VERSION `
+            -OccupiedPort 8000
 
-          health=$(curl --fail --silent --show-error http://127.0.0.1:18001/api/health)
-          printf '%s' "${health}" | grep --fixed-strings '"status":"ok"'
-          printf '%s' "${health}" | grep --fixed-strings "\"version\":\"${version}\""
-          curl --fail --silent --show-error http://127.0.0.1:18001/ \
-            | grep --fixed-strings '<div id="root"></div>'
-
-          container_id=$(docker compose \
-            --project-name "${project}" \
-            -f compose.release.yaml \
-            ps --quiet composer)
-          test "$(docker inspect --format '{{.Config.User}}' "${container_id}")" = "composer"
-          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "${container_id}")" = "true"
+      - name: Run real Linux launcher E2E
+        shell: bash
+        run: |
+          export MCP_COMPOSER_E2E_BUNDLE_DIR="${MCP_COMPOSER_E2E_LINUX_BUNDLE}"
+          export MCP_COMPOSER_E2E_IMAGE=mcp-composer
+          export MCP_COMPOSER_E2E_OCCUPIED_PORT=8000
+          bash release/tests/linux-launcher.e2e.sh
 
   publish-release:
     needs: publish-image

@@ -26,7 +26,11 @@ $ConfigDirectory = if ($env:MCP_COMPOSER_LAUNCHER_CONFIG_DIR) {
     Join-Path $LocalData "MCP Composer"
 }
 $ConfigFile = Join-Path $ConfigDirectory "composer.env"
-$ProjectName = "mcp-composer"
+$ProjectName = if ($env:MCP_COMPOSER_LAUNCHER_PROJECT_NAME) {
+    $env:MCP_COMPOSER_LAUNCHER_PROJECT_NAME
+} else {
+    "mcp-composer"
+}
 
 function Stop-WithError([string]$Message) {
     Write-Error $Message
@@ -50,6 +54,27 @@ function Assert-Port([int]$Value) {
     if ($Value -lt 1 -or $Value -gt 65535) {
         Stop-WithError "Port must be between 1 and 65535."
     }
+}
+
+function Test-PortAvailable([int]$Value) {
+    $Listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Value)
+    try {
+        $Listener.Start()
+        return $true
+    } catch [System.Net.Sockets.SocketException] {
+        return $false
+    } finally {
+        $Listener.Stop()
+    }
+}
+
+function Find-AvailablePort {
+    for ($Candidate = 8000; $Candidate -le 8999; $Candidate++) {
+        if (Test-PortAvailable $Candidate) {
+            return $Candidate
+        }
+    }
+    Stop-WithError "No free loopback port was found in the 8000-8999 range."
 }
 
 function Write-Utf8File([string]$Path, [string[]]$Lines) {
@@ -127,6 +152,57 @@ function Assert-Docker {
     }
 }
 
+function Test-ProjectRunning {
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "SilentlyContinue"
+        $DockerArguments = @(
+            "ps",
+            "--filter", "label=com.docker.compose.project=$ProjectName",
+            "--filter", "label=com.docker.compose.service=composer",
+            "--format", "{{.ID}}"
+        )
+        $ContainerIds = @(& docker @DockerArguments 2>$null)
+        return ($LASTEXITCODE -eq 0 -and $ContainerIds.Count -gt 0)
+    } finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+}
+
+function Get-RunningProjectPort {
+    $PreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "SilentlyContinue"
+        $DockerArguments = @(
+            "ps",
+            "--filter", "label=com.docker.compose.project=$ProjectName",
+            "--filter", "label=com.docker.compose.service=composer",
+            "--format", "{{.Ports}}"
+        )
+        $PublishedPorts = @(& docker @DockerArguments 2>$null)
+        if ($LASTEXITCODE -ne 0) {
+            return 0
+        }
+        foreach ($PublishedPort in $PublishedPorts) {
+            if ($PublishedPort -match '127\.0\.0\.1:(\d+)->8000/tcp') {
+                return [int]$Matches[1]
+            }
+        }
+        return 0
+    } finally {
+        $ErrorActionPreference = $PreviousErrorActionPreference
+    }
+}
+
+function Test-McpComposerHealth([string]$Url) {
+    try {
+        $Health = Invoke-RestMethod -Uri "$Url/api/health" -TimeoutSec 2
+        return ($Health.status -eq "ok" -and $Health.service -eq "mcp-composer-api")
+    } catch {
+        return $false
+    }
+}
+
 function Sync-ComposeEnvironment {
     $ConfigVersion = Get-ConfigValue "MCP_COMPOSER_VERSION" (Get-BundleVersion)
     $ConfigPort = Get-ConfigValue "MCP_COMPOSER_PORT" "8000"
@@ -189,10 +265,45 @@ if ($Action -eq "Update" -and -not $Version) {
 Sync-ComposeEnvironment
 $BaseUrl = "http://127.0.0.1:$($env:MCP_COMPOSER_PORT)"
 
+$RunningProjectPort = Get-RunningProjectPort
+if ($Action -eq "Start" -and $RunningProjectPort -ne 0) {
+    $RunningProjectUrl = "http://127.0.0.1:$RunningProjectPort"
+    if (Test-McpComposerHealth $RunningProjectUrl) {
+        if ($RunningProjectPort -ne [int]$env:MCP_COMPOSER_PORT) {
+            Set-ConfigValue "MCP_COMPOSER_PORT" ([string]$RunningProjectPort)
+            $env:MCP_COMPOSER_PORT = [string]$RunningProjectPort
+        }
+        Write-Host "MCP Composer is already running at $RunningProjectUrl"
+        if (-not $NoBrowser) {
+            Start-Process $RunningProjectUrl
+        }
+        exit 0
+    }
+}
+
+if ($Action -eq "Start" -and -not (Test-PortAvailable ([int]$env:MCP_COMPOSER_PORT))) {
+    if ((Test-ProjectRunning) -and (Test-McpComposerHealth $BaseUrl)) {
+        Write-Host "MCP Composer is already running at $BaseUrl"
+        if (-not $NoBrowser) {
+            Start-Process $BaseUrl
+        }
+        exit 0
+    }
+    if ($Port -ne 0) {
+        Stop-WithError "Port $Port is already in use. Choose another port with -Port."
+    }
+    $PreviousPort = $env:MCP_COMPOSER_PORT
+    $AvailablePort = Find-AvailablePort
+    Set-ConfigValue "MCP_COMPOSER_PORT" ([string]$AvailablePort)
+    $env:MCP_COMPOSER_PORT = [string]$AvailablePort
+    $BaseUrl = "http://127.0.0.1:$AvailablePort"
+    Write-Host "Port $PreviousPort is already in use; using $AvailablePort instead."
+}
+
 try {
     switch ($Action) {
         "Start" {
-            Invoke-Compose @("up", "--detach", "--pull", "always", "--wait", "--wait-timeout", "120")
+            Invoke-Compose @("up", "--detach", "--pull", "missing", "--wait", "--wait-timeout", "120")
             Wait-ForHealth $BaseUrl
             Write-Host "MCP Composer $($env:MCP_COMPOSER_VERSION) is running at $BaseUrl"
             if (-not $NoBrowser) {

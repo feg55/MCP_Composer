@@ -8,7 +8,7 @@ Release bundles run the published container image. Docker Engine with Docker Com
 2. Start Docker Desktop.
 3. Run `start.cmd`.
 
-The launcher pulls the pinned image, waits for `/api/health`, and opens `http://127.0.0.1:8000`. Configuration is stored in `%LOCALAPPDATA%\MCP Composer\composer.env`.
+The launcher uses the pinned local image when it is already present, otherwise pulls it, waits for `/api/health`, and opens the browser. The default address is `http://127.0.0.1:8000`; when that port is occupied, the launcher selects a free port in the `8000-8999` range and prints the actual address. Configuration is stored in `%LOCALAPPDATA%\MCP Composer\composer.env`.
 
 ```powershell
 start.cmd -Port 8080 -NoBrowser
@@ -31,7 +31,7 @@ cd mcp-composer-<version>-linux
 ./install.sh
 ```
 
-The unprivileged installer copies the runtime launcher to `${XDG_DATA_HOME:-$HOME/.local/share}/mcp-composer/runtime` and stores configuration in `${XDG_CONFIG_HOME:-$HOME/.config}/mcp-composer/composer.env`.
+The unprivileged installer copies the runtime launcher to `${XDG_DATA_HOME:-$HOME/.local/share}/mcp-composer/runtime` and stores configuration in `${XDG_CONFIG_HOME:-$HOME/.config}/mcp-composer/composer.env`. If port `8000` is occupied, the launcher selects a free port in the `8000-8999` range and prints it.
 
 Useful commands:
 

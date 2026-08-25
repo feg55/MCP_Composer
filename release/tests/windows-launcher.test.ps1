@@ -34,7 +34,7 @@ try {
         throw "Windows launcher did not persist the selected port."
     }
     $DockerCalls = Get-Content -Raw -LiteralPath $DockerLog
-    if ($DockerCalls -notmatch 'up --detach --pull always --wait --wait-timeout 120') {
+    if ($DockerCalls -notmatch 'up --detach --pull missing --wait --wait-timeout 120') {
         throw "Windows launcher did not execute the expected Compose startup."
     }
 
