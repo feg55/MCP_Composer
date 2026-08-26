@@ -145,11 +145,11 @@ describe("application render isolation", () => {
       sources: []
     });
     apiMocks.testConnection.mockResolvedValue({ status: "ready", message: "Connected." });
-    apiMocks.discoverTools.mockResolvedValue({
+    apiMocks.discoverTools.mockImplementation(async (server: CatalogServerDefinition) => ({
       status: "ready",
       message: "Discovered.",
-      tools: catalogServer.tools
-    });
+      tools: server.tools
+    }));
     apiMocks.validateComposition.mockResolvedValue({ valid: true, warnings: [], errors: [] });
     apiMocks.generateGateway.mockResolvedValue(generatedGateway);
 
@@ -195,6 +195,10 @@ describe("application render isolation", () => {
   async function addServer(user: ReturnType<typeof userEvent.setup>): Promise<void> {
     await user.click(screen.getByRole("button", { name: "Add" }));
     await screen.findByText("0/2 tools selected");
+    await waitFor(() => expect(apiMocks.discoverTools).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: "Refresh tools" }) as HTMLButtonElement).disabled).toBe(false)
+    );
   }
 
   it("deduplicates the catalog mount effect under the browser StrictMode tree", async () => {
@@ -208,6 +212,56 @@ describe("application render isolation", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByText("Demo MCP Server");
     expect(apiMocks.searchCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it("discovers tools automatically after adding a server and keeps navigation user-controlled", async () => {
+    const user = userEvent.setup();
+    const pendingDiscovery = deferred<{
+      status: "ready";
+      message: string;
+      tools: CatalogServerDefinition["tools"];
+    }>();
+    apiMocks.searchCatalog.mockResolvedValueOnce({
+      servers: [{ ...catalogServer, tools: [] }],
+      nextCursor: null,
+      sources: []
+    });
+    apiMocks.discoverTools.mockReturnValueOnce(pendingDiscovery.promise);
+    render(<App />);
+    await openServersStep(user);
+
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(apiMocks.discoverTools).toHaveBeenCalledTimes(1));
+    expect((screen.getByRole("button", { name: "Discovering tools" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => {
+      pendingDiscovery.resolve({ status: "ready", message: "Discovered.", tools: catalogServer.tools });
+      await pendingDiscovery.promise;
+    });
+
+    await screen.findByRole("button", { name: "Refresh tools" });
+    expect(screen.queryByText("Tool Picker")).toBeNull();
+    expect((screen.getByRole("button", { name: "Next" }) as HTMLButtonElement).disabled).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText("Tool Picker");
+  });
+
+  it("allows the server pool list to be hidden and restored", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openServersStep(user);
+    await addServer(user);
+
+    await user.click(screen.getByRole("button", { name: "Hide servers" }));
+
+    expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
+    expect(screen.getByText("1 server")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Show servers" }));
+    expect(screen.getByRole("button", { name: "Test" })).toBeTruthy();
   });
 
   it("updates only the edited Task Profile subscribers", async () => {
@@ -438,6 +492,8 @@ describe("application render isolation", () => {
     await addServer(user);
     act(() => compositionActions.addServer(secondCatalogServer));
     await screen.findByText("Second MCP Server");
+    await waitFor(() => expect(apiMocks.discoverTools).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Refresh tools" })).toHaveLength(2));
     await user.click(screen.getByRole("button", { name: "Next" }));
     await screen.findByText("Tool Picker");
 
@@ -510,6 +566,13 @@ describe("application render isolation", () => {
     await user.type(screen.getByLabelText("Credential DEMO_TOKEN"), "session-secret");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByText("configured")).toBeTruthy();
+
+    await waitFor(() => expect(apiMocks.discoverTools).toHaveBeenCalledTimes(2));
+    const discoveryServer = apiMocks.discoverTools.mock.calls[1]?.[0];
+    expect(discoveryServer.env).toEqual({ DEMO_TOKEN: "session-secret" });
+    await waitFor(() =>
+      expect((screen.getByRole("button", { name: "Test" }) as HTMLButtonElement).disabled).toBe(false)
+    );
 
     await user.click(screen.getByRole("button", { name: "Test" }));
     await waitFor(() => expect(apiMocks.testConnection).toHaveBeenCalledTimes(1));

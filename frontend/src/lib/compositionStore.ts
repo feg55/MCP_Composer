@@ -291,11 +291,9 @@ async function inspectServer(serverId: string): Promise<void> {
         )
       : snapshot.serverPool;
     const nextPool = sameItems(snapshot.serverPool, mappedPool) ? snapshot.serverPool : mappedPool;
-    const opensTools = result.status === "ready" && result.tools.length > 0;
     const completionPatch: CorePatch = {
       serverPool: nextPool,
-      discoveringServerIds: removeFromSet(snapshot.discoveringServerIds, serverId),
-      ...(opensTools ? { focusServerId: serverId, activeStep: "tools" as const } : {})
+      discoveringServerIds: removeFromSet(snapshot.discoveringServerIds, serverId)
     };
     if (nextPool === snapshot.serverPool) commit(completionPatch);
     else commitCompositionMutation(completionPatch);
@@ -304,12 +302,6 @@ async function inspectServer(serverId: string): Promise<void> {
       `${server.name}: ${result.message}`,
       result.status === "ready" ? "success" : result.status === "needs_auth" ? "warning" : "error"
     );
-    if (opensTools) {
-      window.setTimeout(
-        () => document.getElementById("tool-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        0
-      );
-    }
   } catch (error) {
     if (operationEpoch !== storeEpoch) return;
     const message = error instanceof Error ? error.message : "Tool discovery failed.";
@@ -434,6 +426,7 @@ export const compositionActions = {
     const cloned = cloneServer(server);
     commitCompositionMutation({ serverPool: [...snapshot.serverPool, cloned] });
     pushAudit("server_added", `${cloned.name} added to the server pool.`, "success");
+    if (cloned.status !== "disabled") void inspectServer(cloned.id);
   },
 
   removeServer(serverId: string): void {
@@ -478,6 +471,7 @@ export const compositionActions = {
       `${server.name}: ${key} ${nextValue ? "configured for this session" : "cleared"}.`,
       nextValue ? "success" : "warning"
     );
+    if (nextValue && !isBusy(serverId)) void inspectServer(serverId);
   },
 
   inspectServer,

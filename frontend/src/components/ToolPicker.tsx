@@ -47,8 +47,8 @@ export const ToolPicker = memo(function ToolPicker() {
             No tools available
           </div>
           {serverIds.length
-            ? "Run Discover tools from Server Pool. Live MCP tools will appear grouped by upstream server."
-            : "Add at least one server to the pool and run Discover tools. Live MCP tools will appear grouped by upstream server."}
+            ? "Tool discovery is running automatically. You can retry it from Server Pool if a server fails."
+            : "Add at least one server to the pool. Tool discovery will start automatically."}
         </div>
       )}
     </Panel>
@@ -96,7 +96,7 @@ const ToolServerGroup = memo(function ToolServerGroup({ serverId }: ToolServerGr
           ))
         ) : (
           <div className={styles.emptyServer}>
-            Discover tools for this server from Server Pool before selecting capabilities.
+            This server has no discovered tools yet. Wait for automatic discovery or retry it from Server Pool.
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@
 param(
     [string]$BundleDirectory = "",
     [string]$Image = "mcp-composer",
-    [string]$Version = "0.1.4",
+    [string]$Version = "0.1.5",
     [int]$OccupiedPort = 0
 )
 
