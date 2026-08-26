@@ -41,7 +41,7 @@ grep --fixed-strings 'up --detach --pull missing --wait --wait-timeout 120' "${M
 export MCP_COMPOSER_MOCK_RUNNING_PROJECT=1
 : >"${MCP_COMPOSER_TEST_DOCKER_LOG}"
 bash "${LAUNCHER}" start
-grep --fixed-strings 'MCP_COMPOSER_VERSION=0.1.6' "${XDG_CONFIG_HOME}/mcp-composer/composer.env"
+grep --fixed-strings 'MCP_COMPOSER_VERSION=0.1.7' "${XDG_CONFIG_HOME}/mcp-composer/composer.env"
 grep --fixed-strings 'up --detach --pull missing --wait --wait-timeout 120' "${MCP_COMPOSER_TEST_DOCKER_LOG}"
 export MCP_COMPOSER_MOCK_RUNNING_PROJECT=0
 
