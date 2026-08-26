@@ -74,11 +74,15 @@ export const ToolCard = memo(function ToolCard({
           </label>
           <div className={styles.summaryBody}>
             <div className={styles.titleRow}>
-              <h4 className={styles.title}>{tool.originalName}</h4>
+              <h4 className={styles.title} title={tool.originalName}>
+                {tool.originalName}
+              </h4>
               <RiskBadge risk={tool.riskLevel} />
             </div>
             <p className={styles.description}>{tool.description}</p>
-            <p className={styles.namespace}>{namespacePreview}</p>
+            <p className={styles.namespace} title={namespacePreview}>
+              {namespacePreview}
+            </p>
           </div>
         </div>
         <div className={styles.controls}>

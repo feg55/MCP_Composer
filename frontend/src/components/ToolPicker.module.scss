@@ -63,6 +63,9 @@
 
 .toolList {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 20rem));
+  grid-auto-rows: 12.5rem;
+  align-items: stretch;
   gap: 0.75rem;
 }
 
