@@ -249,19 +249,26 @@ describe("application render isolation", () => {
     await screen.findByText("Tool Picker");
   });
 
-  it("allows the server pool list to be hidden and restored", async () => {
+  it("collapses tool lists per MCP server and all at once", async () => {
     const user = userEvent.setup();
     render(<App />);
     await openServersStep(user);
     await addServer(user);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText("Tool Picker");
 
-    await user.click(screen.getByRole("button", { name: "Hide servers" }));
+    await user.click(screen.getByRole("button", { name: "Hide tools for Demo MCP Server" }));
+    expect(screen.queryByLabelText("Enable demo_read")).toBeNull();
+    expect(screen.getByText("0/2 selected")).toBeTruthy();
 
-    expect(screen.queryByRole("button", { name: "Test" })).toBeNull();
-    expect(screen.getByText("1 server")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Show tools for Demo MCP Server" }));
+    expect(screen.getByLabelText("Enable demo_read")).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Show servers" }));
-    expect(screen.getByRole("button", { name: "Test" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Hide all tools" }));
+    expect(screen.queryByLabelText("Enable demo_read")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Show all tools" }));
+    expect(screen.getByLabelText("Enable demo_read")).toBeTruthy();
   });
 
   it("updates only the edited Task Profile subscribers", async () => {

@@ -1,15 +1,18 @@
-import { Wrench } from "lucide-react";
-import { memo, useMemo } from "react";
+import { ChevronDown, ChevronRight, ChevronsUpDown, Wrench } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { compositionActions, useCompositionSelector } from "../lib/compositionStore";
 import { reportRender } from "../lib/renderAudit";
-import { namespaceToolName } from "../lib/utils";
+import { cn, namespaceToolName } from "../lib/utils";
+import { Button } from "./Button";
 import { Panel } from "./Panel";
 import { ToolCard } from "./ToolCard";
 import styles from "./ToolPicker.module.scss";
 
 interface ToolServerGroupProps {
   serverId: string;
+  collapsed: boolean;
+  onToggleCollapsed: (serverId: string) => void;
 }
 
 const CONFLICT_SEPARATOR = "\u0000";
@@ -20,6 +23,7 @@ export const ToolPicker = memo(function ToolPicker() {
   const serverIds = useCompositionSelector((current) => current.serverIds);
   const focusServerId = useCompositionSelector((current) => current.focusServerId);
   const hasTools = useCompositionSelector((current) => current.hasDiscoveredTools);
+  const [collapsedServerIds, setCollapsedServerIds] = useState<ReadonlySet<string>>(() => new Set());
   const orderedServers = useMemo(() => {
     if (!focusServerId) return serverIds;
     return [...serverIds].sort((a, b) => {
@@ -28,16 +32,42 @@ export const ToolPicker = memo(function ToolPicker() {
       return 0;
     });
   }, [focusServerId, serverIds]);
+  const allCollapsed = serverIds.length > 0 && serverIds.every((serverId) => collapsedServerIds.has(serverId));
+  const toggleServer = useCallback((serverId: string) => {
+    setCollapsedServerIds((current) => {
+      const next = new Set(current);
+      if (next.has(serverId)) next.delete(serverId);
+      else next.add(serverId);
+      return next;
+    });
+  }, []);
+  const toggleAll = useCallback(() => {
+    setCollapsedServerIds((current) => {
+      const shouldExpand = serverIds.length > 0 && serverIds.every((serverId) => current.has(serverId));
+      return shouldExpand ? new Set() : new Set(serverIds);
+    });
+  }, [serverIds]);
+  const collapseAction = serverIds.length > 0 && hasTools && (
+    <Button variant="ghost" onClick={toggleAll} leftIcon={<ChevronsUpDown size="0.9375rem" />}>
+      {allCollapsed ? "Show all tools" : "Hide all tools"}
+    </Button>
+  );
 
   return (
     <Panel
       title="Tool Picker"
       subtitle="Select tools from multiple upstream servers and configure aliases, risk posture, and permissions."
+      actions={collapseAction}
     >
       {serverIds.length > 0 && hasTools ? (
         <div className={styles.serverList}>
           {orderedServers.map((serverId) => (
-            <ToolServerGroup key={serverId} serverId={serverId} />
+            <ToolServerGroup
+              key={serverId}
+              serverId={serverId}
+              collapsed={collapsedServerIds.has(serverId)}
+              onToggleCollapsed={toggleServer}
+            />
           ))}
         </div>
       ) : (
@@ -55,7 +85,11 @@ export const ToolPicker = memo(function ToolPicker() {
   );
 });
 
-const ToolServerGroup = memo(function ToolServerGroup({ serverId }: ToolServerGroupProps) {
+const ToolServerGroup = memo(function ToolServerGroup({
+  serverId,
+  collapsed,
+  onToggleCollapsed
+}: ToolServerGroupProps) {
   if (import.meta.env.DEV) reportRender(`ToolServerGroup:${serverId}`);
 
   const server = useCompositionSelector((current) => current.serverById.get(serverId));
@@ -66,40 +100,55 @@ const ToolServerGroup = memo(function ToolServerGroup({ serverId }: ToolServerGr
     () => new Set(conflictKey ? conflictKey.split(CONFLICT_SEPARATOR) : []),
     [conflictKey]
   );
+  const handleToggleCollapsed = useCallback(() => onToggleCollapsed(serverId), [onToggleCollapsed, serverId]);
 
   if (!server) return null;
 
   return (
-    <section className={focused ? styles.focusedServer : undefined}>
-      <div className={styles.serverHeader}>
+    <section className={cn(focused && styles.focusedServer, collapsed && styles.collapsedServer)}>
+      <div className={cn(styles.serverHeader, collapsed && styles.serverHeaderCollapsed)}>
         <div>
           <h3 className={styles.serverTitle}>{server.name}</h3>
           <p className={styles.serverMeta}>
             {server.tools.filter((tool) => tool.enabled).length}/{server.tools.length} selected
           </p>
         </div>
-        <span className={styles.transport}>{server.transport}</span>
+        <div className={styles.serverActions}>
+          <span className={styles.transport}>{server.transport}</span>
+          <Button
+            variant="ghost"
+            aria-expanded={!collapsed}
+            aria-controls={`tool-list-${server.id}`}
+            aria-label={`${collapsed ? "Show" : "Hide"} tools for ${server.name}`}
+            onClick={handleToggleCollapsed}
+            leftIcon={collapsed ? <ChevronRight size="0.9375rem" /> : <ChevronDown size="0.9375rem" />}
+          >
+            {collapsed ? "Show tools" : "Hide tools"}
+          </Button>
+        </div>
       </div>
-      <div className={styles.toolList}>
-        {server.tools.length ? (
-          server.tools.map((tool) => (
-            <ToolCard
-              key={tool.id}
-              serverId={server.id}
-              tool={tool}
-              namespacePreview={namespaceToolName(server, tool.originalName)}
-              aliasConflict={tool.enabled && conflictingAliases.has(tool.exposedName)}
-              onToggle={compositionActions.toggleTool}
-              onAliasChange={compositionActions.changeAlias}
-              onPermissionChange={compositionActions.changePermission}
-            />
-          ))
-        ) : (
-          <div className={styles.emptyServer}>
-            This server has no discovered tools yet. Wait for automatic discovery or retry it from Server Pool.
-          </div>
-        )}
-      </div>
+      {!collapsed && (
+        <div id={`tool-list-${server.id}`} className={styles.toolList}>
+          {server.tools.length ? (
+            server.tools.map((tool) => (
+              <ToolCard
+                key={tool.id}
+                serverId={server.id}
+                tool={tool}
+                namespacePreview={namespaceToolName(server, tool.originalName)}
+                aliasConflict={tool.enabled && conflictingAliases.has(tool.exposedName)}
+                onToggle={compositionActions.toggleTool}
+                onAliasChange={compositionActions.changeAlias}
+                onPermissionChange={compositionActions.changePermission}
+              />
+            ))
+          ) : (
+            <div className={styles.emptyServer}>
+              This server has no discovered tools yet. Wait for automatic discovery or retry it from Server Pool.
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 });

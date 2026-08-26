@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, KeyRound, PlayCircle, Power, RefreshCw, Trash2 } from "lucide-react";
+import { KeyRound, PlayCircle, Power, RefreshCw, Trash2 } from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 
 import { Badge, StatusBadge } from "./Badge";
@@ -160,41 +160,19 @@ const ServerPoolCard = memo(function ServerPoolCard({ serverId }: ServerPoolCard
 
 export const ServerPool = memo(function ServerPool() {
   if (import.meta.env.DEV) reportRender("ServerPool");
-  const [collapsed, setCollapsed] = useState(false);
   const serverIds = useCompositionSelector((current) => current.serverIds);
-  const discoveringCount = useCompositionSelector((current) => current.discoveringServerIds.size);
-
-  const collapseAction = serverIds.length ? (
-    <Button
-      variant="ghost"
-      aria-expanded={!collapsed}
-      aria-controls="server-pool-list"
-      onClick={() => setCollapsed((current) => !current)}
-      leftIcon={collapsed ? <ChevronRight size="0.9375rem" /> : <ChevronDown size="0.9375rem" />}
-    >
-      {collapsed ? "Show servers" : "Hide servers"}
-    </Button>
-  ) : null;
 
   return (
     <Panel
       title="Server Pool"
       subtitle="Upstream servers added to the composition workspace. Tool discovery starts automatically."
-      actions={collapseAction}
     >
       {serverIds.length ? (
-        collapsed ? (
-          <div className={styles.collapsedSummary} aria-live="polite">
-            {serverIds.length} {serverIds.length === 1 ? "server" : "servers"}
-            {discoveringCount > 0 && ` · discovering tools for ${discoveringCount}`}
-          </div>
-        ) : (
-          <div id="server-pool-list" className={styles.list}>
-            {serverIds.map((serverId) => (
-              <ServerPoolCard key={serverId} serverId={serverId} />
-            ))}
-          </div>
-        )
+        <div className={styles.list}>
+          {serverIds.map((serverId) => (
+            <ServerPoolCard key={serverId} serverId={serverId} />
+          ))}
+        </div>
       ) : (
         <div className={styles.emptyState}>
           Add a server from discovery or manual configuration to start composing a gateway.
