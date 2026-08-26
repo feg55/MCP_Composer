@@ -50,7 +50,7 @@ try {
     $global:McpComposerMockRunningProject = $true
     & $Launcher -Action Start -NoBrowser
     $Config = Get-Content -Raw -LiteralPath $ConfigFile
-    if ($Config -notmatch 'MCP_COMPOSER_VERSION=0\.1\.5') {
+    if ($Config -notmatch 'MCP_COMPOSER_VERSION=0\.1\.6') {
         throw "Windows launcher did not upgrade an existing project to the bundle version."
     }
     $DockerCalls = Get-Content -Raw -LiteralPath $DockerLog
