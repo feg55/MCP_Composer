@@ -115,7 +115,7 @@ jobs:
             org.opencontainers.image.description=Compose task-specific MCP gateways from curated upstream tools.
       - name: Build and push multi-platform image
         id: image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
