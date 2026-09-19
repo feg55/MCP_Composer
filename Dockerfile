@@ -2,7 +2,7 @@
 
 ARG MCP_COMPOSER_VERSION=0.1.0
 
-FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS frontend-build
+FROM --platform=$BUILDPLATFORM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS frontend-build
 ARG MCP_COMPOSER_VERSION
 ENV VITE_APP_VERSION=${MCP_COMPOSER_VERSION}
 WORKDIR /build/frontend
@@ -13,7 +13,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5 AS node-runtime
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS node-runtime
 
 FROM python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de AS runtime
 ARG MCP_COMPOSER_VERSION
